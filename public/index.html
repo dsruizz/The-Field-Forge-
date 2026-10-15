@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Field Forge — Cenizas de Prípiat</title>
+<meta name="description" content="Prototipo narrativo de The Field Forge: una herramienta visual para campañas de rol presenciales.">
+<link rel="icon" href="assets/img/favicon.ico" type="image/x-icon">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#inicio" aria-label="The Field Forge inicio"><span class="brand-mark">F</span> The Field Forge</a>
+  <nav class="toplinks" aria-label="Navegación principal">
+    <a href="#historia">La campaña</a><a href="#geiger">Sistemas</a><a href="#ecosistema">Ecosistema</a>
+  </nav>
+  <div class="top-right"><span class="status">PROTO / BETA</span><button class="btn ghost" id="toggleHud">HUD GEIGER</button></div>
+</header>
+
+<main>
+<section class="hero" id="inicio">
+  <div class="hero-copy">
+    <div class="kicker reveal">Campaña de ejemplo / Archivo 001</div>
+    <h1 class="reveal">Cenizas<br><span class="outline">de Prípiat</span></h1>
+    <p class="hero-lede reveal" contenteditable="true" data-editable="hero-description">No fue un solo Chernóbil. Fue una carrera. Cuarenta años después, los humanos sobreviven tras muros fortificados mientras algo más ocupa la cima de la cadena alimenticia.</p>
+    <div class="hero-actions reveal"><a class="btn" href="#historia">Entrar en la historia ↘</a><a class="btn ghost" href="#ecosistema">Explorar Field Forge</a></div>
+  </div>
+  <div class="hero-art reveal">
+    <div class="art-frame">
+      <div class="art-placeholder" id="heroPlaceholder">
+        <svg viewBox="0 0 420 480" fill="none" aria-label="Ilustración provisional de una zona contaminada">
+          <path d="M0 370L90 260L145 300L220 180L300 285L360 230L420 310V480H0Z" fill="#181818"/>
+          <path d="M40 0L90 140L63 200L120 290L95 480H0V0Z" fill="#9F2C27" opacity=".5"/>
+          <circle cx="292" cy="112" r="55" fill="#FDE134" opacity=".7"/>
+          <path d="M260 110L290 75L320 110L290 145Z" fill="#262626"/>
+          <path d="M185 480L205 325L238 325L255 480" fill="#101010"/>
+          <path d="M150 480L170 360L200 360L205 480" fill="#343434"/>
+          <path d="M310 480L325 330L350 330L375 480" fill="#202020"/>
+          <g stroke="#D9D9D9" stroke-width="2" opacity=".6"><path d="M25 210L80 170L125 210"/><path d="M280 250L335 205L390 250"/><path d="M10 320L70 280L120 320"/></g>
+          <text x="22" y="40" fill="#D9D9D9" font-family="monospace" font-size="10">ZONA MUERTA // 04</text>
+        </svg>
+      </div>
+    </div>
+    <div class="hero-stamp">40 AÑOS<br>DESPUÉS<br>—<br>NO HAY<br>VUELTA</div>
+    <div class="art-caption"><strong contenteditable="true" data-editable="hero-art-caption">El mundo<br>se acaba lento.</strong><span>FIG. 001 / PRÍPIAT</span></div>
+  </div>
+  <div class="hero-index"><span>THE FIELD FORGE / NARRATIVE CANVAS</span><span>01 — 08 HORAS DE CAMPAÑA</span><span>DESPLAZA PARA CONTINUAR ↓</span></div>
+</section>
+
+<section class="section" id="contexto">
+  <div class="section-head">
+    <div class="kicker">00 / El mundo</div>
+    <div><h2 class="reveal">La catástrofe<br>fue una carrera.</h2><p class="reveal" contenteditable="true" data-editable="world-intro">Varios países compitieron en secreto por la misma tecnología. Las fugas casi simultáneas encendieron una reacción en cadena: reactor tras reactor, la radiación cubrió medio planeta en menos de un año.</p></div>
+  </div>
+  <div class="intro-grid">
+    <article class="story-card reveal">
+      <div class="card-art"></div>
+      <div class="story-card-content"><div class="kicker">Archivo / 001-A</div><h3>Los Corrompidos</h3><p contenteditable="true" data-editable="corrupted-description">Los infectados no murieron. Mutaron. Conservan instinto, memoria fragmentada y, a veces, lenguaje. No perdieron la mente del todo: perdieron el control sobre lo que fueron.</p></div>
+    </article>
+    <div class="side-stack">
+      <article class="mini-card reveal"><div class="mini-number">01</div><div><h3>La cadena cambió</h3><p>La radiación activó experimentos de manipulación genética animal. Lobos, jabalíes y aves ocuparon la cima de la cadena alimenticia. Los humanos pasaron a ser presa.</p></div></article>
+      <article class="mini-card reveal"><div class="mini-number">02</div><div><h3>Cuarenta años después</h3><p>Los supervivientes viven en refugios fortificados. Las expediciones cruzan las Zonas Muertas por tecnología, medicina y comida.</p></div></article>
+      <article class="mini-card reveal"><div class="mini-number">03</div><div><h3>Un rumor persiste</h3><p>Se habla de un valle sin contaminar y de una cura cercana. El mundo se acaba lento, pero todavía hay gente peleando para que no se acabe del todo.</p></div></article>
+    </div>
+  </div>
+</section>
+
+<section class="section timeline-section" id="historia">
+  <div class="section-head">
+    <div class="kicker">01 / Narrativa en scroll</div>
+    <div><h2>Una historia.<br>Tu mesa.</h2><p>Una campaña puede convertirse en una secuencia visual proyectada en la mesa: escenas, texto, mapas y recursos gráficos acompañan la narración sin reemplazar la conversación entre jugadores. Los textos de esta demo son editables; las imágenes se pueden sustituir desde el panel de edición.</p></div>
+  </div>
+  <div class="timeline">
+    <article class="scene">
+      <div class="scene-marker">01</div>
+      <div class="scene-copy"><div class="scene-meta">00:30 — 01:00 / Gancho narrativo</div><span class="chapter-tag">La Plaza de Bienvenida</span><h3>El último saludo</h3><p contenteditable="true" data-editable="scene1">En los pueblos cercanos a las Zonas Muertas, la llegada del rey y su caballería siempre significaba suministros, noticias y esperanza. Esta vez, el convoy no se detuvo. Siguió de largo hacia la casa real, dejando atrás una plaza llena de preguntas.</p><div class="pull">Algo había cambiado. Y nadie sabía qué.</div></div>
+      <div class="scene-visual"><div class="visual-placeholder"><span class="visual-symbol">☢</span><span class="visual-label">Imagen editable / Plaza contaminada</span></div><span class="image-caption">Escena 01 / La plaza</span></div>
+    </article>
+    <article class="scene">
+      <div class="scene-marker">02</div>
+      <div class="scene-copy"><div class="scene-meta">01:00 — 02:30 / Acto I</div><span class="chapter-tag">Dos desconocidos</span><h3>Reese & Michael</h3><p contenteditable="true" data-editable="scene2">Reese, un vagabundo que acababa de ganarse una pelea con la guardia, y Michael T., un soldado retirado ahogando sus penas en una taberna, no tenían motivos para confiar el uno en el otro. Pero los gritos que llegaban desde la casa real les dieron una razón para avanzar juntos.</p><div class="pull">Dos vidas rotas. Una puerta cerrada.</div></div>
+      <div class="scene-visual"><div class="visual-placeholder"><span class="visual-symbol">R / M</span><span class="visual-label">Imagen editable / El bosque y la taberna</span></div><span class="image-caption">Escena 02 / Primer encuentro</span></div>
+    </article>
+    <article class="scene">
+      <div class="scene-marker">03</div>
+      <div class="scene-copy"><div class="scene-meta">02:30 — 04:15 / Acto II</div><span class="chapter-tag">La casa real</span><h3>Algo respira<br>tras la puerta</h3><p contenteditable="true" data-editable="scene3">Entraron por una ventana alta, ayudándose mutuamente. Dentro, la casa estaba llena de gritos y rastros de violencia. El primer Corrompido los obligó a luchar mucho más de lo esperado. No era el único. Tres más aparecieron mientras avanzaban hacia el origen de las voces.</p><div class="pull">Cada habitación cobraba un precio.</div></div>
+      <div class="scene-visual"><div class="visual-placeholder"><span class="visual-symbol">⌁</span><span class="visual-label">Imagen editable / Interior de la casa</span></div><span class="image-caption">Escena 03 / Infiltración</span></div>
+    </article>
+    <article class="scene">
+      <div class="scene-marker">04</div>
+      <div class="scene-copy"><div class="scene-meta">05:00 — 06:30 / Acto III</div><span class="chapter-tag">El rey contaminado</span><h3>La familia<br>ya no era la misma</h3><p contenteditable="true" data-editable="scene4">Los gritos conducían al rey y a su familia. El monarca se negó a dejarlos entrar, pero cuando consiguieron llegar hasta él, la verdad se hizo imposible de ocultar: estaba contaminado. En medio del caos mató a uno de sus hijos. Entonces, algo mucho peor irrumpió desde el techo.</p><div class="pull">El verdadero monstruo no estaba fuera.</div></div>
+      <div class="scene-visual"><div class="visual-placeholder"><span class="visual-symbol">X</span><span class="visual-label">Imagen editable / El salón real</span></div><span class="image-caption">Escena 04 / El clímax</span></div>
+    </article>
+    <article class="scene">
+      <div class="scene-marker">05</div>
+      <div class="scene-copy"><div class="scene-meta">06:30 — 08:00 / Acto IV</div><span class="chapter-tag">Consecuencias</span><h3>La huida<br>no es victoria</h3><p contenteditable="true" data-editable="scene5">Reese murió durante el enfrentamiento. Michael y el último hijo superviviente escaparon, perseguidos por el horror que había tomado la casa. Se llevaron una camioneta de la familia real, cargada de suministros y dinero. El camino seguía abierto; lo que habían dejado atrás, no.</p><div class="pull">Toda campaña deja algo atrás.</div></div>
+      <div class="scene-visual"><div class="visual-placeholder"><span class="visual-symbol">↗</span><span class="visual-label">Imagen editable / La camioneta en la carretera</span></div><span class="image-caption">Escena 05 / Escape</span></div>
+    </article>
+  </div>
+</section>
+
+<section class="data-band">
+  <div><div class="kicker">Sistema compartido / En vivo</div><h3>La historia avanza. El mundo responde.</h3></div>
+  <button class="btn" onclick="document.querySelector('#geiger').scrollIntoView({behavior:'smooth'})">Ver contador Geiger ↘</button>
+</section>
+
+<section class="section geiger-section" id="geiger">
+  <div class="section-head">
+    <div class="kicker">02 / Herramientas de mesa</div>
+    <div><h2>La radiación<br>no espera.</h2><p>El contador Geiger funciona como una capa de información compartida: el DM puede modificarlo y los jugadores ven cómo cambia el riesgo. En esta maqueta es interactivo y demostrativo; todavía no existe sincronización real entre dispositivos.</p></div>
+  </div>
+  <div class="geiger-layout">
+    <div class="geiger-device reveal" id="bigGeiger">
+      <div class="device-top"><span>FIELD FORGE / G-01</span><span>LIVE READOUT</span></div>
+      <div class="device-screen"><div class="device-label">EXPOSICIÓN DEL GRUPO</div><div class="geiger-number"><span id="bigGeigerValue">3</span><small>/ 10</small></div><div id="bigGeigerStatus">NORMAL — SIN EFECTOS</div><div class="meter" id="bigMeter"></div></div>
+      <div class="device-controls"><button class="btn ghost" id="geoDown">− Reducir</button><button class="btn" id="geoUp">+ Exposición</button><button class="btn ghost" id="geoReset">Reset</button></div>
+    </div>
+    <div class="geiger-copy reveal">
+      <div class="kicker">Reglas de la campaña</div><h3>Una amenaza que escala.</h3>
+      <p>El medidor compartido va de 0 a 10. Sube al entrar en Zonas Muertas, abrir contenedores sellados, permanecer cerca de un Corrompido o sacar un 1 en una tirada de radiación. Baja al volver a una zona segura o utilizar recursos narrativos como filtros y medicinas.</p>
+      <div class="thresholds">
+        <div class="threshold"><b>0–4</b><span>Seguro / Normal</span></div><div class="threshold"><b>5–7</b><span>Riesgo / Tirada 1d6</span></div><div class="threshold"><b>8–9</b><span>Alerta / Ventaja enemiga</span></div><div class="threshold"><b>10</b><span>Crítico / Evento DM</span></div>
+      </div>
+      <table class="mutation-table">
+        <thead><tr><th># / Mutación</th><th>Beneficio</th><th>Costo</th></tr></thead>
+        <tbody>
+          <tr><td>01 / Piel escamosa</td><td>+1 Fuerza</td><td>−1 Voluntad con no mutados</td></tr>
+          <tr><td>02 / Visión nocturna</td><td>+1 Instinto en oscuridad</td><td>−1 Reflejos con luz fuerte</td></tr>
+          <tr><td>03 / Regeneración lenta</td><td>+1 PV al descansar</td><td>Cicatrices asustan animales domésticos</td></tr>
+          <tr><td>04 / Reflejos acelerados</td><td>+1 Reflejos</td><td>−1 en precisión fina</td></tr>
+          <tr><td>05 / Fuerza bruta</td><td>+1 daño cuerpo a cuerpo</td><td>−1 sigilo</td></tr>
+          <tr><td>06 / Resistencia a radiación</td><td>El Geiger sube más lento</td><td>−1 persuasión con no mutados</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section product-preview" id="ecosistema">
+  <div class="section-head">
+    <div class="kicker">03 / El ecosistema</div>
+    <div><h2>No solo se cuenta.<br>Se construye.</h2><p>La campaña puede vivir en distintos espacios conectados: mapa editable, entidades, notas, sesiones y fichas. Esta vista representa la dirección posible del producto, no una funcionalidad backend ya construida.</p></div>
+  </div>
+  <div class="dashboard reveal">
+    <aside class="dash-sidebar">
+      <div class="dash-logo"><span style="color:var(--acid)">F.</span> FIELD FORGE</div>
+      <nav class="dash-nav"><button class="active" data-tab="map">◈ Mapa de campaña</button><button data-tab="session">▤ Registro de sesión</button><button data-tab="entities">♙ Personajes y NPC</button><button data-tab="inventory">▧ Inventario</button><button data-tab="stats">⌁ Estadísticas</button></nav>
+      <div style="margin-top:60px;font:9px var(--mono);color:#777">BETA CONCEPT / 0.1</div>
+    </aside>
+    <div class="dash-main">
+      <div class="dash-top"><div><span>CAMPAÑA ACTIVA / ARCHIVO 001</span><h3 id="dashTitle">Zonas de Prípiat</h3></div><button class="btn" id="addMapPin">+ Añadir zona</button></div>
+      <div class="dash-stat-row"><div class="dash-stat"><b>04</b><span>Ubicaciones</span></div><div class="dash-stat"><b>06</b><span>Entidades</span></div><div class="dash-stat"><b id="dashRisk">03/10</b><span>Exposición</span></div></div>
+      <div class="dash-grid">
+        <div class="dash-panel" id="mainDashPanel"><div class="panel-label" id="panelLabel">Mapa / editable en concepto</div><div class="campaign-map" id="campaignMap"><div class="map-road r1"></div><div class="map-road r2"></div><div class="map-zone z1">Pueblo<br>refugio</div><div class="map-zone z2">Casa real</div><div class="map-zone z3">Zona muerta</div><div class="map-pin p1"></div><div class="map-pin p2"></div><div class="map-pin p3"></div></div><p style="font-size:10px;color:#777;margin:12px 0 0">Prototipo visual: selecciona “Añadir zona” para colocar un punto demostrativo.</p></div>
+        <div class="dash-panel dash-side-panel"><div class="panel-label">Elementos recientes</div><div class="entity-list"><div class="entity"><div class="entity-icon">R</div><div><b>Reese</b><span>Personaje / Vagabundo</span></div></div><div class="entity"><div class="entity-icon">M</div><div><b>Michael T.</b><span>Personaje / Soldado retirado</span></div></div><div class="entity"><div class="entity-icon">☢</div><div><b>Contador Geiger</b><span>Sistema compartido</span></div></div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section phone-section">
+  <div class="phone-layout">
+    <div class="reveal"><div class="kicker">04 / Vista del jugador</div><h2>La mesa es física.<br>La memoria, no.</h2><p>Desde su teléfono, cada jugador podría consultar la ficha, los recursos y los acontecimientos relevantes de la campaña. Una pantalla compartida podría mostrar el mapa, los enemigos y los efectos narrativos mientras el DM controla la información desde su propio panel.</p><p>En esta beta visual, las interfaces son una demostración de concepto: no hay cuentas, conexión QR, sincronización en tiempo real ni guardado de datos.</p><button class="btn ghost" id="playerDamage">Simular daño −3 PV</button> <button class="btn ghost" id="playerHeal">Recuperar +2 PV</button></div>
+    <div class="phone reveal">
+      <div class="phone-notch"></div><div class="phone-screen">
+        <div class="phone-head"><span>FIELD FORGE</span><span>● EN MESA</span></div>
+        <div class="player-card"><div class="pc-label">TU PERSONAJE / FICHA</div><h3>Michael T.</h3><p>Soldado retirado · Superviviente</p><div class="hp-row"><span>PUNTOS DE VIDA</span><b id="playerHp">12 / 15</b></div><div class="hp-bar"><span id="playerHpBar"></span></div></div>
+        <div class="phone-options"><div class="phone-option"><b>03</b>Inventario</div><div class="phone-option"><b id="phoneGeiger">03/10</b>Exposición</div><div class="phone-option"><b>07</b>Notas de campaña</div><div class="phone-option"><b>02</b>Objetos clave</div></div>
+        <div class="phone-log"><b>ÚLTIMO ACONTECIMIENTO</b><br>Escapaste de la casa real con el último heredero y los suministros del convoy.</div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div><div class="kicker">The Field Forge / Prototype 0.1</div><h2>FORJA TU MUNDO.</h2></div>
+  <p>Un prototipo visual para explorar cómo narrativa, información y recursos gráficos pueden acompañar una campaña presencial. No representa todavía el producto completo ni sus funcionalidades conectadas.</p>
+</footer>
+
+<div class="hud" id="geigerHud">
+  <div class="hud-head" id="hudDrag"><span>☢ GEIGER / SHARED HUD</span><button id="hudClose" aria-label="Ocultar HUD">×</button></div>
+  <div class="hud-body"><div class="hud-value"><span id="hudValue">3</span><small> / 10</small></div><div class="hud-status" id="hudStatus">● NORMAL</div><div class="hud-track" id="hudTrack"></div><div class="hud-buttons"><button id="hudDown">−</button><button id="hudUp">+</button></div></div>
+  <div class="hud-resize" id="hudResize"></div>
+</div>
+<button class="hud-toggle" id="showHud">☢ MOSTRAR GEIGER</button>
+
+<div class="edit-dock">
+  <div class="edit-panel" id="editPanel">
+    <h3>Editar escena</h3>
+    <p class="editable-hint">Cambia el texto de algunos bloques haciendo clic directamente sobre ellos. Para reemplazar una imagen, pega su URL abajo.</p>
+    <label for="imageTarget">Contenedor visual</label>
+    <select id="imageTarget" style="width:100%;padding:9px;background:#303030;color:#eee;border:1px solid #555;font-size:11px">
+      <option value="hero">Portada / zona muerta</option><option value="scene1">Escena 01 / plaza</option><option value="scene2">Escena 02 / Reese y Michael</option><option value="scene3">Escena 03 / casa real</option><option value="scene4">Escena 04 / clímax</option><option value="scene5">Escena 05 / huida</option>
+    </select>
+    <label for="imageUrl">URL de imagen</label><input id="imageUrl" type="url" placeholder="https://.../imagen.jpg">
+    <button class="btn" style="width:100%;margin-top:10px" id="applyImage">Aplicar imagen</button>
+    <p>También puedes reemplazar los bloques visuales editando sus estilos o añadiendo etiquetas &lt;img&gt; en el HTML. El contenido editable en pantalla no se guarda al recargar.</p>
+  </div>
+  <button class="btn" id="editToggle">✎ EDITAR PROTOTIPO</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script src="js/app.js?v=20261014" defer></script>
+</body>
+</html>
+
+
