@@ -15,7 +15,7 @@
 <header class="topbar">
   <a class="brand" href="#inicio" aria-label="The Field Forge inicio"><span class="brand-mark">F</span> The Field Forge</a>
   <nav class="toplinks" aria-label="Navegación principal">
-    <a href="#historia">La campaña</a><a href="#geiger">Sistemas</a><a href="#ecosistema">Ecosistema</a>
+    <a href="#historia">La campaña</a><a href="#geiger">Sistemas</a><a href="#combate">Combate</a><a href="#ecosistema">Ecosistema</a>
   </nav>
   <div class="top-right"><span class="status">PROTO / BETA</span><button class="btn ghost" id="toggleHud">HUD GEIGER</button></div>
 </header>
@@ -139,9 +139,45 @@
   </div>
 </section>
 
+<section class="section combat-section" id="combate">
+  <div class="section-head">
+    <div class="kicker">03 / Combate en mesa</div>
+    <div><h2>Tira el dado.<br>La web cuenta.</h2><p>Elige personaje y enemigo, lanza tus dados físicos y escribe el resultado: el sistema suma modificadores, compara con la CA, aplica el daño y lleva el registro de cada ronda. Si no tienes dados a mano, el botón de dado virtual tira por ti.</p></div>
+  </div>
+
+  <form class="combat-setup" id="combatSetup">
+    <div class="field"><label for="combatHero">Personaje</label><select id="combatHero"></select></div>
+    <div class="field"><label for="combatEnemy">Enemigo</label><select id="combatEnemy"></select></div>
+    <div class="combat-setup-actions">
+      <button class="btn" type="submit" id="combatStart">Empezar combate</button>
+      <button class="btn ghost" type="button" id="combatQuick">Simulación rápida</button>
+    </div>
+  </form>
+
+  <div class="combat-arena">
+    <article class="fighter hero-side" id="fighterHero" aria-live="polite"></article>
+    <div class="combat-center">
+      <div class="vs-stamp" aria-hidden="true">VS</div>
+      <div class="dice-console" id="diceConsole">
+        <div class="console-top"><span id="consoleRound">SIN COMBATE</span><span>SISTEMA DND</span></div>
+        <div class="console-body" id="consoleBody">
+          <p class="console-prompt">Elige personaje y enemigo y pulsa <b>Empezar combate</b>.</p>
+        </div>
+      </div>
+    </div>
+    <article class="fighter enemy-side" id="fighterEnemy" aria-live="polite"></article>
+  </div>
+
+  <div class="combat-log-wrap">
+    <div class="panel-label">Registro de combate</div>
+    <ol class="combat-log" id="combatLog" aria-live="polite"></ol>
+  </div>
+  <p class="combat-credit">Motor de combate: <a href="https://github.com/dillan031/Sistema_DND" target="_blank" rel="noopener">Sistema DND</a>, de Dillan. Reglas basadas en D&amp;D 5e (nivel 1).</p>
+</section>
+
 <section class="section product-preview" id="ecosistema">
   <div class="section-head">
-    <div class="kicker">03 / El ecosistema</div>
+    <div class="kicker">04 / El ecosistema</div>
     <div><h2>No solo se cuenta.<br>Se construye.</h2><p>La campaña puede vivir en distintos espacios conectados: mapa editable, entidades, notas, sesiones y fichas. Esta vista representa la dirección posible del producto, no una funcionalidad backend ya construida.</p></div>
   </div>
   <div class="dashboard reveal">
@@ -163,7 +199,7 @@
 
 <section class="section phone-section">
   <div class="phone-layout">
-    <div class="reveal"><div class="kicker">04 / Vista del jugador</div><h2>La mesa es física.<br>La memoria, no.</h2><p>Desde su teléfono, cada jugador podría consultar la ficha, los recursos y los acontecimientos relevantes de la campaña. Una pantalla compartida podría mostrar el mapa, los enemigos y los efectos narrativos mientras el DM controla la información desde su propio panel.</p><p>En esta beta visual, las interfaces son una demostración de concepto: no hay cuentas, conexión QR, sincronización en tiempo real ni guardado de datos.</p><button class="btn ghost" id="playerDamage">Simular daño −3 PV</button> <button class="btn ghost" id="playerHeal">Recuperar +2 PV</button></div>
+    <div class="reveal"><div class="kicker">05 / Vista del jugador</div><h2>La mesa es física.<br>La memoria, no.</h2><p>Desde su teléfono, cada jugador podría consultar la ficha, los recursos y los acontecimientos relevantes de la campaña. Una pantalla compartida podría mostrar el mapa, los enemigos y los efectos narrativos mientras el DM controla la información desde su propio panel.</p><p>En esta beta visual, las interfaces son una demostración de concepto: no hay cuentas, conexión QR, sincronización en tiempo real ni guardado de datos.</p><button class="btn ghost" id="playerDamage">Simular daño −3 PV</button> <button class="btn ghost" id="playerHeal">Recuperar +2 PV</button></div>
     <div class="phone reveal">
       <div class="phone-notch"></div><div class="phone-screen">
         <div class="phone-head"><span>FIELD FORGE</span><span>● EN MESA</span></div>
@@ -206,6 +242,11 @@
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
 <script src="js/app.js?v=20261014" defer></script>
+<script type="module" src="js/combate.js?v=20261015"></script>
+<script>
+  // Los módulos ES no cargan al abrir el archivo con doble clic (file://).
+  if (location.protocol === "file:") document.getElementById("consoleBody").innerHTML = '<p class="console-error">El combate necesita abrir la web desde un servidor (Docker o npx serve). Con doble clic el navegador bloquea los módulos.</p>';
+</script>
 </body>
 </html>
 
