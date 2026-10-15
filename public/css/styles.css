@@ -183,12 +183,72 @@ h3{font-size:clamp(27px,3vw,40px);margin-bottom:12px}
 .hud-toggle.show{display:block}
 .hud-resize{position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,#9eaf8b 50%)}
 .editable-hint{font:9px var(--mono);color:#888;text-transform:uppercase}
+/* Combate / Sistema DND */
+.combat-section{background:linear-gradient(160deg,#262626 55%,#2b2f3c);overflow:hidden}
+.combat-section:before{content:"";position:absolute;right:-8%;top:8%;width:46%;height:70%;background:var(--rust);opacity:.12;clip-path:polygon(30% 0,100% 12%,82% 100%,0 78%);pointer-events:none}
+.combat-setup{position:relative;display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end;padding:18px;background:#303030;border:1px solid var(--line);margin-bottom:34px}
+.combat-setup .field label,.console-label{display:block;font:10px var(--mono);color:#aaa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.combat-setup select,.dice-console select{width:100%;padding:11px;background:#1d1d1d;color:var(--paper);border:1px solid #555;font:600 14px var(--body)}
+.combat-setup-actions{display:flex;gap:8px;flex-wrap:wrap}
+.combat-section select:focus-visible,.combat-section input:focus-visible,.combat-section .btn:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+.combat-arena{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.95fr) minmax(0,1fr);gap:22px;align-items:start}
+.fighter{position:relative;padding:20px;background:#1d1d1d;border:1px solid #555;box-shadow:10px 10px 0 #151515;transition:opacity .3s,filter .3s;min-width:0}
+.fighter.hero-side{transform:rotate(-1deg);border-top:4px solid var(--acid)}
+.fighter.enemy-side{transform:rotate(1deg);border-top:4px solid var(--rust)}
+.fighter.down{opacity:.5;filter:grayscale(1)}
+.fighter.down:after{content:"CAÍDO";position:absolute;top:44%;left:50%;transform:translate(-50%,-50%) rotate(-12deg);font:900 52px var(--display);color:var(--rust);border:3px solid var(--rust);padding:0 14px;background:rgba(29,29,29,.85)}
+.fighter-label{font:10px var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--acid)}
+.enemy-side .fighter-label{color:#d4544d}
+.fighter h3{font-size:clamp(30px,3vw,40px);margin:8px 0 4px}
+.fighter-sub{font:10px var(--mono);color:#999;text-transform:uppercase;margin-bottom:16px}
+.fighter-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.fighter-stats div{background:#2a2a2a;padding:8px}
+.fighter-stats b{display:block;font:700 26px/1 var(--display)}
+.fighter-stats small{font-size:14px;color:#888}
+.fighter-stats span{font:9px var(--mono);color:#999;text-transform:uppercase}
+.fighter-hp{height:8px;background:#3a3a3a;margin:12px 0 16px}
+.fighter-hp span{display:block;height:100%;background:var(--acid);transition:width .4s ease}
+.fighter-hp.mid span{background:var(--yellow)}.fighter-hp.low span{background:var(--rust)}
+.fighter-abilities{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;text-align:center}
+.fighter-abilities div{border:1px solid #3d3d3d;padding:6px 2px}
+.fighter-abilities span{display:block;font:9px var(--mono);color:#999}
+.fighter-abilities b{display:block;font:700 18px/1.1 var(--display)}
+.fighter-abilities small{font:10px var(--mono);color:var(--acid)}
+.fighter-weapons{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:5px}
+.fighter-weapons li{display:flex;justify-content:space-between;gap:10px;font-size:12px;border-bottom:1px solid #333;padding-bottom:5px}
+.fighter-weapons span{font:10px var(--mono);color:#999;text-align:right}
+.combat-center{position:relative}
+.vs-stamp{width:76px;height:76px;margin:0 auto -24px;position:relative;z-index:2;display:grid;place-items:center;border-radius:50%;background:var(--yellow);color:var(--ink);font:900 34px var(--display);transform:rotate(-8deg);box-shadow:4px 4px 0 #151515}
+.dice-console{padding:34px 20px 20px;border:1px solid #5b5b5b;background:linear-gradient(145deg,#3d3d3d,#242424);box-shadow:12px 12px 0 #151515}
+.console-top{display:flex;justify-content:space-between;font:10px var(--mono);color:#aaa;border-bottom:1px solid #555;padding-bottom:10px}
+.console-body{background:#151b12;border:3px solid #555;padding:18px 16px;margin-top:14px;color:var(--acid);font-family:var(--mono);min-height:220px}
+.console-prompt,.console-hint{font-size:12px;color:#9fb58a;margin:0}
+.console-hint{margin-top:8px;font-size:11px}
+.console-step{font:800 22px/1.05 var(--display);text-transform:uppercase;color:var(--paper);margin-bottom:14px}
+.console-label{color:#9fb58a;margin-top:10px}
+.dice-console select{margin-bottom:6px}
+.roll-row{display:flex;gap:8px}
+.roll-row input{flex:1;min-width:0;padding:10px 12px;background:#0d110b;border:1px solid #6d8057;color:var(--acid);font:500 26px var(--mono)}
+.console-error{color:#ff8a80;font-size:11px;margin:6px 0 0;min-height:1em}
+.dice-btn{width:100%;margin-top:10px;border-color:#657657!important;color:var(--acid)!important}
+.console-result{font:800 32px/1 var(--display);text-transform:uppercase;color:var(--yellow);margin:10px 0 18px}
+.combat-log-wrap{position:relative;margin-top:34px;background:#1d1d1d;border:1px solid var(--line);padding:16px}
+.combat-log-wrap .panel-label{color:#999}
+.combat-log{list-style:none;margin:10px 0 0;padding:0;max-height:300px;overflow-y:auto;font:12px/1.6 var(--mono);color:#bdbdbd}
+.combat-log:empty:before{content:"Aún no hay tiradas.";color:#777}
+.combat-log li{padding:3px 0;border-bottom:1px solid #2c2c2c}
+.combat-log li.round{color:var(--paper);font-weight:500;padding-top:9px}
+.combat-log li.hit{color:var(--acid)}.combat-log li.miss{color:#8a8a8a}
+.combat-log li.crit{color:var(--yellow)}.combat-log li.win{color:var(--ink);background:var(--yellow);padding:6px 8px;margin-top:6px;font-weight:500}
+.combat-credit{position:relative;font:10px var(--mono);color:#888;margin:18px 0 0;text-transform:uppercase}
+.combat-credit a{color:var(--acid);text-decoration:underline}
 @media(max-width:900px){
  .hero{grid-template-columns:1fr;padding-top:125px}.hero-art{min-height:400px;max-width:560px;width:100%;margin:0 auto}
  .section-head{grid-template-columns:1fr;gap:15px}.intro-grid,.geiger-layout,.phone-layout{grid-template-columns:1fr}
  .scene{grid-template-columns:38px minmax(0,1fr);gap:16px}.scene-visual{grid-column:2;min-height:290px}.scene-visual img{min-height:290px}
  .scene-marker{width:38px;height:38px}.timeline:before{left:19px}
  .dashboard{grid-template-columns:145px 1fr}.dash-grid{grid-template-columns:1fr}.dash-side-panel{display:none}
+ .combat-arena{grid-template-columns:1fr 1fr}.combat-center{grid-column:1/-1;order:-1}.combat-setup{grid-template-columns:1fr 1fr}.combat-setup-actions{grid-column:1/-1}
  .data-band{grid-template-columns:1fr}.hud{top:auto;bottom:15px;right:15px;width:165px}.hud-toggle{top:auto;bottom:15px;right:15px}
 }
 @media(max-width:600px){
@@ -200,6 +260,7 @@ h3{font-size:clamp(27px,3vw,40px);margin-bottom:12px}
  .scene-visual{grid-column:2;min-height:230px}.scene-visual img{min-height:230px}.scene-copy h3{font-size:39px}
  .thresholds{grid-template-columns:repeat(2,1fr);row-gap:16px}.mutation-table{font-size:10px}.mutation-table th,.mutation-table td{padding:9px 4px}
  .dashboard{grid-template-columns:1fr}.dash-sidebar{display:none}.dash-top h3{font-size:29px}.dash-stat-row{grid-template-columns:repeat(3,1fr)}.dash-stat{padding:8px}.dash-stat b{font-size:23px}
+ .combat-setup,.combat-arena{grid-template-columns:1fr}.fighter,.fighter.hero-side,.fighter.enemy-side{transform:none;box-shadow:6px 6px 0 #151515}.combat-setup-actions .btn{flex:1}
  .footer{align-items:start;flex-direction:column}.hud{width:150px;right:10px;bottom:10px}.hud-value{font-size:28px}.edit-dock{right:10px;bottom:10px}
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
