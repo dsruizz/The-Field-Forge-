@@ -6,8 +6,9 @@ Herramienta de mesa para la campaña: crónica en vivo, personajes y mapas, con 
 
 ```bash
 git pull origin main
-docker compose up -d   # sirve ./public en el puerto de compose.yml
 ```
+
+nginx monta `./public` como volumen, así que basta con el pull; no hace falta reiniciar el contenedor. Si no está levantado: `docker compose up -d`.
 
 ## Páginas
 
