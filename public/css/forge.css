@@ -659,3 +659,60 @@ p { margin: 0 0 .8em; }
 .hero__frame.is-blank { display: grid; place-items: center; background: radial-gradient(circle at 60% 40%, #4b3a33, #262626 65%); }
 .hero__frame.is-blank .logo-full { width: 62%; color: rgba(217, 217, 217, .22); }
 .stage-map > div { position: absolute; inset: 0; }
+
+/* ===================== Sala de jugadores (DM) ===================== */
+.salabtn { position: relative; gap: 7px; }
+.salabtn__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4); border: 1px solid var(--muted); }
+.salabtn.is-live .salabtn__dot { background: var(--acid); border-color: var(--acid); box-shadow: 0 0 0 3px rgba(170, 212, 49, .2); }
+.salabtn__n { position: absolute; top: -8px; right: -8px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center; background: var(--rust); color: #fff; border: 2px solid var(--ink); border-radius: 10px; font: 700 10px/1 var(--mono); animation: salaPulse 1.4s ease-in-out infinite; }
+@keyframes salaPulse { 50% { transform: scale(1.15); } }
+
+.saladock { position: fixed; left: 16px; bottom: 16px; z-index: 80; display: grid; gap: 10px; width: min(340px, calc(100vw - 32px)); pointer-events: none; }
+.saladock__card { pointer-events: auto; background: var(--yellow); color: var(--ink); border: 2px solid var(--ink); box-shadow: var(--hard); padding: 12px 14px; }
+.saladock__card p { margin: 4px 0 10px; font-size: 14px; line-height: 1.35; }
+.saladock__k { font: 600 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.saladock__act { display: flex; gap: 8px; }
+.saladock__act .btn { flex: 1; }
+
+.modal--sala .modal__box { width: min(100%, 860px); }
+.sala__h { font-size: clamp(28px, 4vw, 44px); margin: 6px 0 12px; }
+.sala__lead { color: var(--paper); opacity: .8; max-width: 56ch; }
+.sala__alt { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 14px; }
+.sala__alt summary { cursor: pointer; font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.sala__form { display: grid; grid-template-columns: 1fr 2fr auto; gap: 12px; align-items: end; margin-top: 12px; }
+.sala__top { display: grid; grid-template-columns: 170px 1fr; gap: 24px; align-items: center; }
+.sala__qr { background: #fff; border: 2px solid var(--paper); box-shadow: 6px 6px 0 #000; aspect-ratio: 1; }
+.sala__qr svg { display: block; width: 100%; height: 100%; }
+.sala__code { margin: 4px 0 6px; font: 400 clamp(46px, 7vw, 72px)/1 var(--display); font-weight: 900; letter-spacing: .08em; color: var(--yellow); }
+.sala__live { color: var(--acid); } .sala__off { color: var(--rust); }
+.sala__btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.sala__sec { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 16px; }
+.sala__sec h3 { font-size: 20px; margin-bottom: 10px; }
+.sala__row { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(150px, 1.2fr) 80px auto 34px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.sala__row select { background: var(--ink-2); border: 2px solid var(--ink-4); padding: 7px 8px; }
+.sala__who { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.sala__who i { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-4); flex: none; }
+.sala__who i.is-on { background: var(--acid); }
+.sala__hp { font: 500 12px var(--mono); }
+.sala__slots { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pips { display: inline-flex; align-items: center; gap: 3px; padding: 4px 6px; background: var(--ink-2); border: 1px solid var(--ink-4); }
+.pips small { font: 500 9px var(--mono); color: var(--muted); margin-right: 3px; text-transform: uppercase; }
+.pips i { width: 9px; height: 9px; transform: rotate(45deg); border: 1.5px solid var(--acid); }
+.pips i.is-full { background: var(--acid); }
+.pips:not([disabled]):hover { border-color: var(--yellow); }
+.pips[disabled] { cursor: default; }
+.sala__sol { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 8px; background: var(--yellow); color: var(--ink); border: 2px solid var(--ink); }
+.sala__sol.is-ok { background: var(--acid); }
+.sala__switch { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.sala__switch input { width: 18px; height: 18px; accent-color: var(--acid); margin-top: 2px; }
+.sala__switch small { display: block; color: var(--muted); }
+.sala__log { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.sala__log li { display: flex; gap: 10px; padding: 3px 0; }
+.sala__log time { font: 500 11px var(--mono); color: var(--muted); }
+@media (max-width: 700px) {
+  .sala__top { grid-template-columns: 1fr; }
+  .sala__qr { width: 180px; }
+  .sala__row { grid-template-columns: 1fr auto; }
+  .sala__form { grid-template-columns: 1fr; }
+}
+.sala .eyebrow { margin: 0; font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }

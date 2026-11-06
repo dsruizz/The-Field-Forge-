@@ -1,0 +1,9 @@
+{
+  "name": "the-field-forge-salas",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Servidor de salas de The Field Forge (Node 22, sin dependencias).",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=20" }
+}

@@ -2,14 +2,31 @@ services:
   web:
     image: nginx:alpine
     container_name: dnd-web
-
     volumes:
       - ./public:/usr/share/nginx/html:ro
-
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
     networks:
       - dnd
       - dsruiz-proxy
+    restart: unless-stopped
 
+  # Salas de juego: jugadores en el móvil, peticiones al DM y guardado compartido.
+  api:
+    image: node:22-alpine
+    container_name: dnd-api
+    working_dir: /app
+    command: ["node", "server.js"]
+    environment:
+      - DATA_DIR=/data
+      # Descomenta para exigir una clave al crear salas:
+      # - TFF_CLAVE_CREAR=pon-aqui-una-clave
+    volumes:
+      - ./server:/app:ro
+      - ./data:/data
+    networks:
+      - dnd
     restart: unless-stopped
 
 networks:
