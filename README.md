@@ -26,6 +26,7 @@ Eso crea `dnd-api` (Node 22, sin dependencias) y monta `nginx/default.conf`, que
 | `index.html` · Crónica | Historia continua por sesiones. `N` o “+ Acontecimiento” añade uno; “Guardar y proyectar” lo manda a la pantalla. |
 | `personajes.html` | PJ, NPC y enemigos. Forja de NPC al azar, bestiario 5e y balance de encuentros. |
 | `mapas.html` | Biblioteca de mapas, encuadre, puntos de interés y capas que se ven en la pantalla. |
+| `mesa.html` | La mesa del DM: sala, tarjetas de los PJ, peticiones y vista del móvil de cada jugador. |
 | `jugar.html` | Lo que ve cada jugador en su móvil: vida, conjuros, espacios, ficha, grupo y notas. Se entra con el QR de la sala. |
 | `proyector.html` | Lo que ven los jugadores. Se abre con “Abrir proyector ↗”, se lleva a la segunda pantalla y se pulsa `F`. |
 
@@ -33,15 +34,15 @@ Desde cualquier página, la barra superior cambia lo que muestra el proyector (P
 
 ## Sala de jugadores
 
-En la barra superior, **Sala → Crear sala**. Aparecen un código y un QR que lleva a `jugar.html?sala=CÓDIGO`.
+En **Mesa** (barra superior) → **Crear sala**. En **Invitar** aparecen el código y un QR que lleva a `jugar.html?sala=CÓDIGO`. Cada PJ tiene su tarjeta: foto (arrastra, pega o haz clic), nivel, vida, recursos y jugador; **Ver su móvil** muestra lo que ve el jugador.
 
 1. Cada jugador escanea el QR y escribe su nombre.
-2. En el panel de la sala le asignas su PJ. Las fichas de los PJ se envían solas y se actualizan cuando las cambias aquí (subir de nivel, editar ataques…).
-3. El jugador pulsa **Pedir lanzar** en un conjuro o poder. Te aparece una tarjeta abajo a la izquierda: pide la tirada y marca **Acierta** o **Falla**.
+2. En la tarjeta del PJ eliges qué jugador lo lleva. Las fichas de los PJ se envían solas y se actualizan cuando las cambias aquí (subir de nivel, editar ataques…).
+3. El jugador pulsa **Pedir lanzar** en un conjuro o poder. Te aparece en su tarjeta de la Mesa (y abajo a la izquierda en las demás páginas): pide la tirada y marca **Acierta** o **Falla**.
 4. Si acierta, en su móvil se ilumina **¡Lanzar!**; al pulsarlo se gasta el espacio y ve el efecto. Si falla, no se gasta nada.
-5. Los espacios gastados se ven en el panel; un clic en un rombo recarga un espacio, ↻ lo recarga todo. **Descanso corto** recarga pactos de brujo y el arma de aliento; **Descanso largo**, todo y la vida.
+5. Los espacios gastados se ven en la tarjeta; un clic en un rombo recarga un espacio, ↻ lo recarga todo. **Descanso corto** recarga pactos de brujo y el arma de aliento; **Descanso largo**, todo y la vida.
 
-Los trucos no gastan nada: se pueden lanzar siempre, con una pequeña recarga visual de un asalto. **Lanzamiento libre** quita el permiso del DM (útil fuera de combate). La vida que ajustan los jugadores vuelve a la ficha del DM, y al revés.
+Los trucos no gastan nada: se pueden lanzar siempre, con una pequeña recarga visual de un asalto. **Lanzamiento libre** quita el permiso del DM (útil fuera de combate). La vida la ajustas tú desde la Mesa y se ve al instante en su móvil.
 
 La clave de DM (botón **Copiar clave de DM**) permite controlar la misma sala desde otro equipo. Para exigir una clave al crear salas, define `TFF_CLAVE_CREAR` en `compose.yml`.
 
