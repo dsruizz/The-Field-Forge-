@@ -20,10 +20,18 @@
   const codigoURL = (qs.get('sala') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (ses && codigoURL && ses.codigo !== codigoURL) ses = null; // otro QR, otra sala
 
+  // Vista previa del DM: jugar.html?sala=CODIGO&ver=pjId, desde la Mesa. Solo lectura.
+  const verPJ = qs.get('ver');
+  const dmCfg = leer('tff.sala', null);
+  const solo = !!(verPJ && dmCfg && dmCfg.codigo === codigoURL);
+  if (solo) document.documentElement.classList.add('is-solo');
+
   let v = null;                         // vista del servidor
   let es = null;
   let tab = leer('tff.jugador.tab', 'poderes');
+  if (!['poderes', 'ficha', 'notas'].includes(tab)) tab = 'poderes';
   let fijados = leer('tff.jugador.fijados', {});
+  const abiertas = new Set();          // cartas con la descripción desplegada
   const enfriando = new Map();          // nombre -> fin (ms) para trucos ya lanzados
   const ENFRIA = 6000;                  // un asalto de 6 segundos
 
@@ -150,13 +158,6 @@
     return `<section class="vida ${tono(p)} ${f.pg === 0 ? 'is-caido' : ''}" aria-label="Puntos de golpe">
       <div class="vida__num"><b data-pg>${f.pg}</b><span>/ ${f.pgMax}</span>${f.pgTemp ? `<em>+${f.pgTemp} temp.</em>` : ''}<small>PG</small></div>
       <div class="vida__bar" role="meter" aria-valuemin="0" aria-valuemax="${f.pgMax}" aria-valuenow="${f.pg}" aria-label="Vida"><i style="width:${p}%"></i></div>
-      <div class="vida__btns">
-        <button class="b b--rojo" data-pg-d="-5" aria-label="Restar 5">−5</button>
-        <button class="b b--rojo" data-pg-d="-1" aria-label="Restar 1">−1</button>
-        <button class="b b--sec" data-pg-set aria-label="Escribir vida">±</button>
-        <button class="b b--verde" data-pg-d="1" aria-label="Sumar 1">+1</button>
-        <button class="b b--verde" data-pg-d="5" aria-label="Sumar 5">+5</button>
-      </div>
       ${f.pg === 0 ? '<p class="vida__caido">Inconsciente · tiradas de salvación contra muerte</p>' : ''}
     </section>`;
   }
@@ -164,11 +165,7 @@
   function htmlHUD() {
     const f = v.pj;
     const c = f.conj;
-    const chips = [
-      ['CA', f.ca], ['Inic.', signo(f.iniciativa || 0)], ['Vel.', f.vel],
-      ...(c ? [['CD', c.cd], ['Atq. conj.', signo(c.atk)]] : []),
-      ['Comp.', signo(f.comp || 2)]
-    ];
+    const chips = [['CA', f.ca], ['Iniciativa', signo(f.iniciativa || 0)], c ? ['CD conjuros', c.cd] : ['Velocidad', f.vel]];
     return `<header class="hud__bar">
         <span class="hud__sala">${esc(v.sala.nombre)}</span>
         <span class="hud__code">${v.sala.libre ? '<em class="hud__libre">Libre</em>' : ''}${esc(v.sala.codigo)}<i class="hud__dot is-on" title="Conectado"></i></span>
@@ -183,9 +180,9 @@
       </section>
       ${htmlVida()}
       <ul class="chips">${chips.map(([k, x]) => `<li><small>${k}</small><b>${esc(x)}</b></li>`).join('')}</ul>
-      <div class="panel" role="tabpanel">${{ poderes: htmlPoderes, ficha: htmlFicha, grupo: htmlGrupo, notas: htmlNotas }[tab]()}</div>
+      <div class="panel" role="tabpanel">${{ poderes: htmlPoderes, ficha: htmlFicha, notas: htmlNotas }[tab]()}</div>
       <nav class="tabs" role="tablist" aria-label="Secciones">
-        ${[['poderes', 'Poderes', '✦'], ['ficha', 'Ficha', '◆'], ['grupo', 'Grupo', '◎'], ['notas', 'Notas', '✎']].map(([id, l, ic]) => `<button role="tab" aria-selected="${tab === id}" data-tab="${id}" class="${tab === id ? 'is-on' : ''}"><span aria-hidden="true">${ic}</span>${l}</button>`).join('')}
+        ${[['poderes', 'Poderes', '✦'], ['ficha', 'Ficha', '◆'], ['notas', 'Notas', '✎']].map(([id, l, ic]) => `<button role="tab" aria-selected="${tab === id}" data-tab="${id}" class="${tab === id ? 'is-on' : ''}"><span aria-hidden="true">${ic}</span>${l}</button>`).join('')}
       </nav>`;
   }
 
@@ -222,30 +219,26 @@
   function htmlPoderes() {
     const items = lista();
     if (!items.length) return '<p class="vacio">Tu personaje no tiene conjuros ni poderes con usos. Tus ataques están en Ficha.</p>';
-    const fij = fijados[v.pj.id] || [];
     return htmlEspacios() + `<ul class="cartas">${items.map(x => {
       const sol = solicitudDe(x.n);
       const fin = enfriando.get(x.n) || 0;
-      let estado = 'libre', btn = v.sala.libre ? 'Lanzar' : 'Pedir lanzar';
+      let estado = 'libre', btn = v.sala.libre ? 'Lanzar' : 'Usar';
       if (x.tipo === 'poder' && x.usado) { estado = 'gastado'; btn = 'Usado'; }
       else if (x.tipo === 'conjuro' && x.nivel > 0 && !hayEspacio(x.nivel)) { estado = 'gastado'; btn = 'Sin espacios'; }
-      if (sol && sol.estado === 'pendiente') { estado = 'espera'; btn = 'Esperando al DM…'; }
+      if (sol && sol.estado === 'pendiente') { estado = 'espera'; btn = 'Esperando…'; }
       if (sol && sol.estado === 'permitida') { estado = 'listo'; btn = '¡Lanzar!'; }
       if (fin > Date.now() && estado === 'libre') estado = 'enfria';
       const tema = temaDe(x);
       return `<li class="carta carta--${estado}" data-carta="${esc(x.n)}" data-tipo="${x.tipo}" data-nivel="${x.nivel}" data-tema="${tema.id}" style="--tema:${tema.c}">
         <div class="carta__top">
-          <span class="carta__lvl">${x.tipo === 'poder' ? 'Poder' : x.nivel ? 'Nv ' + x.nivel : 'Truco'}</span>
-          <h3 class="carta__n">${esc(x.n)}</h3>
-          <button class="carta__pin ${fij.includes(x.n) ? 'is-on' : ''}" data-pin aria-pressed="${fij.includes(x.n)}" aria-label="${fij.includes(x.n) ? 'Quitar de favoritos' : 'Fijar arriba'}">★</button>
-        </div>
-        ${x.d ? `<p class="carta__d">${esc(x.d)}</p>` : ''}
-        <div class="carta__act">
-          ${estado === 'espera' ? `<button class="b b--ghost b--sm" data-cancelar>Cancelar</button>` : ''}
-          <button class="b carta__btn" data-lanzar ${estado === 'gastado' || estado === 'espera' || estado === 'enfria' ? 'disabled' : ''}>
-            ${estado === 'enfria' ? '<span class="enfria"><i></i><b>Recargando</b></span>' : btn}
+          <button class="carta__info" data-info aria-expanded="${abiertas.has(x.n)}">
+            <span class="carta__lvl">${x.tipo === 'poder' ? 'Poder' : x.nivel ? 'Nivel ' + x.nivel : 'Truco'}</span>
+            <span class="carta__n">${esc(x.n)}</span>
           </button>
+          ${solo ? '' : `<button class="b carta__btn" data-lanzar ${estado === 'gastado' || estado === 'espera' || estado === 'enfria' ? 'disabled' : ''}>${estado === 'enfria' ? '<span class="enfria"><i></i></span>' : btn}</button>`}
         </div>
+        ${x.d && abiertas.has(x.n) ? `<p class="carta__d">${esc(x.d)}</p>` : ''}
+        ${estado === 'espera' && !solo ? `<button class="carta__cancel" data-cancelar>Cancelar petición</button>` : ''}
       </li>`;
     }).join('')}</ul>`;
   }
@@ -254,16 +247,20 @@
   function htmlFicha() {
     const f = v.pj;
     const A = [['fue', 'FUE'], ['des', 'DES'], ['con', 'CON'], ['int', 'INT'], ['sab', 'SAB'], ['car', 'CAR']];
+    const c = f.conj;
+    const extra = [['Velocidad', f.vel], ['Competencia', signo(f.comp || 2)], ...(c ? [['Ataque de conjuro', signo(c.atk)]] : []), ...(f.percepcionPasiva ? [['Percepción pasiva', f.percepcionPasiva]] : [])];
     return `<section class="bloque"><h2>Atributos</h2>
         <ul class="atr">${A.map(([k, l]) => `<li><small>${l}</small><b>${signo(mod((f.atr || {})[k] || 10))}</b><span>${(f.atr || {})[k] ?? '—'}</span></li>`).join('')}</ul>
-        ${f.percepcionPasiva ? `<p class="mini">Percepción pasiva ${f.percepcionPasiva}</p>` : ''}
+        <dl class="datos">${extra.map(([k, x]) => `<div><dt>${k}</dt><dd>${esc(x)}</dd></div>`).join('')}</dl>
       </section>
       <section class="bloque"><h2>Ataques</h2>
         <ul class="ataques">${(f.ataques || []).map(a => `<li><b>${esc(a.n)}</b><span class="ataques__bono">${a.b == null ? '—' : signo(a.b)}</span><span>${esc(a.d)} ${esc(a.t)}</span>${a.r || a.nota ? `<small>${esc([a.r, a.nota].filter(Boolean).join(' · '))}</small>` : ''}</li>`).join('') || '<li class="vacio">Sin ataques.</li>'}</ul>
       </section>
       <section class="bloque"><h2>Rasgos</h2>
         ${(f.rasgos || []).map(r => `<details class="rasgo"><summary>${esc(r.n)}</summary><p>${esc(r.d)}</p></details>`).join('') || '<p class="vacio">Sin rasgos.</p>'}
-      </section>`;
+      </section>
+      ${v.grupo.length > 1 ? `<section class="bloque"><h2>El grupo</h2><ul class="grupo">${v.grupo.map(htmlMiembro).join('')}</ul></section>` : ''}
+      ${solo ? '' : '<button class="b b--ghost b--sm" data-salir>Salir de la sala</button>'}`;
   }
   function htmlMiembro(g) {
     const p = pct(g.pg, g.pgMax);
@@ -273,14 +270,10 @@
       <span class="miembro__pg">${g.pg}/${g.pgMax}</span>
     </li>`;
   }
-  function htmlGrupo() {
-    return `<section class="bloque"><h2>El grupo</h2><ul class="grupo">${v.grupo.map(htmlMiembro).join('')}</ul></section>
-      <button class="b b--ghost b--sm" data-salir>Salir de la sala</button>`;
-  }
   function htmlNotas() {
     return `<section class="bloque bloque--notas"><h2>Mis notas</h2>
-      <p class="mini">Solo las ves tú y el DM. Se guardan solas.</p>
-      <textarea name="notas" rows="14" placeholder="Pistas, nombres, deudas, lo que no quieres olvidar…">${esc(v.yo.notas || '')}</textarea>
+      <p class="mini">${solo ? 'Notas de ' + esc(v.yo.nombre) + '. Solo lectura.' : 'Solo las ves tú y el DM. Se guardan solas.'}</p>
+      <textarea name="notas" ${solo ? 'readonly' : ''} rows="14" placeholder="Pistas, nombres, deudas, lo que no quieres olvidar…">${esc(v.yo.notas || '')}</textarea>
       <p class="mini notas__estado" aria-live="polite"></p></section>`;
   }
 
@@ -290,16 +283,10 @@
     if (t.closest('[data-salir]')) { if (confirm('¿Salir de la sala? Podrás volver a entrar con tu nombre.')) salir(); return; }
     const tb = t.closest('[data-tab]');
     if (tb) { tab = tb.dataset.tab; escribir('tff.jugador.tab', tab); render(v); if (anim()) gsap.from('.panel > *', { y: 14, opacity: 0, stagger: .04, duration: .25 }); return; }
-    const d = t.closest('[data-pg-d]');
-    if (d) { try { await accion({ accion: 'pg', delta: +d.dataset.pgD }); } catch (err) { toast(err.message, 'error'); } return; }
-    if (t.closest('[data-pg-set]')) { dialogoVida(); return; }
     const carta = t.closest('[data-carta]'); if (!carta) return;
     const n = carta.dataset.carta;
-    if (t.closest('[data-pin]')) {
-      const id = v.pj.id; const l = fijados[id] || [];
-      fijados[id] = l.includes(n) ? l.filter(x => x !== n) : [...l, n];
-      escribir('tff.jugador.fijados', fijados); render(v); return;
-    }
+    if (t.closest('[data-info]')) { abiertas.has(n) ? abiertas.delete(n) : abiertas.add(n); render(v); return; }
+    if (solo) return;
     if (t.closest('[data-cancelar]')) { try { await accion({ accion: 'cancelar' }); } catch (err) { toast(err.message, 'error'); } return; }
     if (t.closest('[data-lanzar]')) {
       const sol = solicitudDe(n);
@@ -334,31 +321,6 @@
       catch (err) { if ($('.notas__estado')) $('.notas__estado').textContent = 'No se pudo guardar: ' + err.message; }
     }, 700);
   });
-
-  function dialogoVida() {
-    const f = v.pj;
-    const d = document.createElement('dialog');
-    d.className = 'dlg';
-    d.innerHTML = `<form method="dialog" class="dlg__box">
-      <h2>Ajustar vida</h2>
-      <label class="campo"><span>Daño o curación (usa − para daño)</span><input name="delta" type="number" inputmode="numeric" placeholder="−7 o 5"></label>
-      <label class="campo"><span>O vida exacta (0–${f.pgMax})</span><input name="valor" type="number" inputmode="numeric" min="0" max="${f.pgMax}" placeholder="${f.pg}"></label>
-      <label class="campo"><span>Puntos de golpe temporales</span><input name="temp" type="number" inputmode="numeric" min="0" value="${f.pgTemp || 0}"></label>
-      <div class="dlg__act"><button class="b b--ghost" value="no">Cancelar</button><button class="b" value="ok">Aplicar</button></div>
-    </form>`;
-    document.body.appendChild(d); d.showModal();
-    d.addEventListener('close', async () => {
-      const fd = new FormData($('form', d));
-      if (d.returnValue === 'ok') {
-        const body = { accion: 'pg' };
-        if (fd.get('delta') !== '') body.delta = +fd.get('delta');
-        else if (fd.get('valor') !== '') body.valor = +fd.get('valor');
-        body.temp = +fd.get('temp') || 0;
-        try { await accion(body); } catch (err) { toast(err.message, 'error'); }
-      }
-      d.remove();
-    });
-  }
 
   /* ---------- Animaciones ---------- */
   function vibrar(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
@@ -465,5 +427,18 @@
   }
 
   /* ---------- Inicio ---------- */
-  if (ses) conectar(); else pantallaEntrar();
+  function conectarComoDM() {
+    pintarCargando();
+    es = new EventSource(`/api/salas/${dmCfg.codigo}/stream?rol=dm&token=${encodeURIComponent(dmCfg.dmToken)}`);
+    es.addEventListener('estado', e => {
+      const d = JSON.parse(e.data), prev = v;
+      const j = d.jugadores.find(x => x.pjId === verPJ);
+      const grupo = d.jugadores.filter(x => x.pjId && d.fichas[x.pjId]).map(x => { const f = d.fichas[x.pjId]; return { jugador: x.nombre, pjId: x.pjId, nombre: f.nombre, img: f.img || '', pg: f.pg, pgMax: f.pgMax, yo: x.pjId === verPJ }; });
+      v = { sala: d.sala, yo: { id: j ? j.id : '', nombre: j ? j.nombre : 'Sin jugador', notas: j ? j.notas : '' }, pj: d.fichas[verPJ] || null, solicitudes: d.solicitudes.filter(x => x.pjId === verPJ), grupo };
+      if (!v.pj) { app.innerHTML = '<p class="cargando">Este personaje aún no está en la sala.</p>'; return; }
+      render(prev);
+    });
+  }
+
+  if (solo) conectarComoDM(); else if (ses) conectar(); else pantallaEntrar();
 })();

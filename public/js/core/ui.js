@@ -122,7 +122,8 @@
   const PAGES = [
     { href: 'index.html', id: 'cronica', label: 'Crónica' },
     { href: 'personajes.html', id: 'personajes', label: 'Personajes' },
-    { href: 'mapas.html', id: 'mapas', label: 'Mapas' }
+    { href: 'mapas.html', id: 'mapas', label: 'Mapas' },
+    { href: 'mesa.html', id: 'mesa', label: 'Mesa' }
   ];
   const MODES = [
     { id: 'portada', label: 'Portada', key: '1' },

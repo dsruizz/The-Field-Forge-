@@ -185,25 +185,25 @@
   const resolver = (id, ok) => dm({ accion: 'resolver', solicitudId: id, ok }).catch(e => ui.toast(e.message, 'error'));
   const enlace = () => `${location.origin}${location.pathname.replace(/[^/]*$/, '')}jugar.html?sala=${cfg.codigo}`;
 
-  /* ---------- Interfaz: botón en la barra, panel y avisos ---------- */
+  /* ---------- Barra superior: acceso a la Mesa con aviso de peticiones ---------- */
   function boton() {
     const ctl = $('.topbar .projctl'); if (!ctl || $('[data-sala]', ctl)) return;
-    const b = document.createElement('button');
-    b.className = 'btn btn--sm btn--ghost salabtn'; b.dataset.sala = '';
-    b.innerHTML = '<span class="salabtn__dot" aria-hidden="true"></span>Sala<span class="salabtn__n" hidden></span>';
-    b.onclick = panel;
+    const b = document.createElement('a');
+    b.href = 'mesa.html'; b.className = 'salabtn'; b.dataset.sala = '';
+    b.innerHTML = '<span class="salabtn__dot" aria-hidden="true"></span><span class="salabtn__txt">Sala</span><span class="salabtn__n" hidden></span>';
     ctl.prepend(b);
     const pintar = () => {
       const n = vista ? vista.solicitudes.filter(s => s.estado === 'pendiente').length : 0;
       const badge = $('.salabtn__n', b); badge.hidden = !n; badge.textContent = n;
       b.classList.toggle('is-live', !!(cfg && conectado));
-      b.title = cfg ? `Sala ${cfg.codigo} · ${conectado ? 'conectada' : 'sin conexión'}` : 'Crear una sala para los jugadores';
+      $('.salabtn__txt', b).textContent = cfg ? cfg.codigo : 'Sala';
+      b.title = cfg ? `Sala ${cfg.codigo} · ${conectado ? 'en vivo' : 'sin conexión'}` : 'Sin sala';
       b.setAttribute('aria-label', `Sala de jugadores${n ? `, ${n} peticiones pendientes` : ''}`);
     };
     subs.add(pintar); pintar();
   }
 
-  // Avisos de peticiones flotando sobre cualquier página del DM.
+  // Peticiones flotando abajo a la izquierda en cualquier página del DM.
   function dock() {
     let el = $('.saladock');
     if (!el) { el = document.createElement('aside'); el.className = 'saladock'; el.setAttribute('aria-live', 'polite'); el.setAttribute('aria-label', 'Peticiones de los jugadores'); document.body.appendChild(el); }
@@ -213,24 +213,25 @@
         const f = vista.fichas[s.pjId] || {};
         return `<div class="saladock__card" data-sol="${s.id}">
           <span class="saladock__k">${s.tipo === 'poder' ? 'Poder' : s.nivel ? 'Conjuro · nivel ' + s.nivel : 'Truco'}</span>
-          <p><b>${esc(f.nombre || '?')}</b> quiere lanzar <b>${esc(s.nombre)}</b></p>
+          <p><b>${esc(f.nombre || '?')}</b> quiere usar <b>${esc(s.nombre)}</b></p>
           <div class="saladock__act"><button class="btn btn--sm" data-ok>Acierta</button><button class="btn btn--sm btn--danger" data-ko>Falla</button></div>
         </div>`;
       }).join('');
-      if (TFF.gsapOk()) $$('.saladock__card:not(.is-in)', el).forEach(c => { c.classList.add('is-in'); gsap.from(c, { x: -30, opacity: 0, rotate: -2, duration: .35, ease: 'back.out(2)' }); });
-      else $$('.saladock__card', el).forEach(c => c.classList.add('is-in'));
+      if (TFF.gsapOk()) $$('.saladock__card', el).forEach(c => gsap.from(c, { x: -24, opacity: 0, duration: .3, ease: 'power3.out' }));
     };
     el.onclick = e => {
       const card = e.target.closest('[data-sol]'); if (!card) return;
       if (e.target.closest('[data-ok]')) resolver(card.dataset.sol, true);
       if (e.target.closest('[data-ko]')) resolver(card.dataset.sol, false);
     };
-    subs.add(pintar); pintar();
+    let ultimo = '';
+    subs.add(() => { const k = vista ? vista.solicitudes.filter(s => s.estado === 'pendiente').map(s => s.id).join() : ''; if (k !== ultimo) { ultimo = k; pintar(); } });
+    pintar();
   }
   function avisoSolicitud(s) {
     const f = vista.fichas[s.pjId] || {};
     if (document.hidden) document.title = '● ' + document.title.replace(/^● /, '');
-    ui.toast(`${f.nombre || 'Un jugador'} quiere lanzar ${s.nombre}`);
+    if (!$('.mesa')) ui.toast(`${f.nombre || 'Un jugador'} quiere usar ${s.nombre}`);
   }
   document.addEventListener('visibilitychange', () => { if (!document.hidden) document.title = document.title.replace(/^● /, ''); });
 
@@ -240,128 +241,177 @@
     return q.createSvgTag({ cellSize: 6, margin: 2, scalable: true, alt: 'Código QR para entrar a la sala' });
   }
 
-  function panel() {
-    const m = ui.modal({ title: 'Sala de jugadores', wide: true, className: 'modal--sala' });
-    const pintar = () => { if (!document.body.contains(m.el)) { subs.delete(pintar); return; } m.body.innerHTML = cfg ? htmlSala() : htmlSinSala(); };
-    subs.add(pintar); pintar();
+  /* ---------- Página Mesa ---------- */
+  // Un tablero tranquilo con una tarjeta por PJ: foto, vida, nivel, recursos y jugador.
+  let preview = null; // pjId en vista previa
+  let invitarAbierto = false;
+  let logAbierto = false;
+  function mesa(root) {
+    root.innerHTML = '<div class="mesa"><div data-zona="top"></div><div class="mesa__body"><section class="mesa__grid" data-zona="grid" aria-label="Personajes jugadores"></section><aside class="mesa__movil" data-zona="movil" hidden aria-label="Vista del móvil del jugador"></aside></div><div data-zona="log"></div></div>';
+    const z = n => $(`[data-zona="${n}"]`, root);
+    // El móvil de vista previa va aparte para que el iframe no se recargue con cada cambio.
+    const pintarMovil = () => {
+      const el = z('movil');
+      el.closest('.mesa__body').classList.toggle('has-preview', !!(preview && cfg));
+      if (!preview || !cfg) { el.hidden = true; el.innerHTML = ''; return; }
+      el.hidden = false;
+      el.innerHTML = `<div class="mesa__movilhead"><span>Así lo ve en su móvil</span><button data-cerrar-ver aria-label="Cerrar vista previa">×</button></div>
+        <iframe src="jugar.html?sala=${cfg.codigo}&ver=${encodeURIComponent(preview)}" title="Vista del jugador"></iframe>`;
+    };
+    const pintar = () => {
+      const foco = document.activeElement && document.activeElement.closest('[data-keep]') ? document.activeElement.dataset.keep : null;
+      z('top').innerHTML = htmlTop();
+      z('grid').innerHTML = pjs().map(htmlTarjeta).join('') || '<p class="src">No hay PJ. Créalos en Personajes.</p>';
+      z('log').innerHTML = htmlLog();
+      TFF.img.hydrate(root);
+      $$('[data-foto]', root).forEach(el => ui.dropzone(el, ref => {
+        const id = el.dataset.foto;
+        S.update(st => { const f = st.personajes.find(x => x.id === id); if (f) f.img = ref; });
+        ui.toast('Foto actualizada. Se envía a su móvil.');
+      }, { max: 900 }));
+      if (foco) $(`[data-keep="${foco}"]`, root)?.focus();
+    };
+    let t = null;
+    const pronto = () => { clearTimeout(t); t = setTimeout(pintar, 30); };
+    subs.add(pronto);
+    S.on(k => { if (k === 'state') pronto(); });
+    pintar();
 
-    m.body.addEventListener('click', async e => {
-      const t = e.target;
+    root.addEventListener('click', async e => {
+      const el = e.target.closest('button, [data-act]'); if (!el) return;
+      const d = el.dataset;
       try {
-        if (t.closest('[data-crear]')) { t.closest('button').disabled = true; await crear(); }
-        if (t.closest('[data-copiar]')) { await navigator.clipboard.writeText(t.closest('[data-copiar]').dataset.copiar); ui.toast('Copiado.'); }
-        if (t.closest('[data-descanso]')) { const tipo = t.closest('[data-descanso]').dataset.descanso; await dm({ accion: 'descanso', tipo }); ui.toast(tipo === 'largo' ? 'Descanso largo: vida y espacios al máximo.' : 'Descanso corto: pactos y poderes recargados.'); }
-        if (t.closest('[data-expulsar]')) { const id = t.closest('[data-expulsar]').dataset.expulsar; if (await ui.confirmar('¿Sacar a este jugador de la sala? Podrá volver a entrar con su nombre.', { ok: 'Sacar' })) await dm({ accion: 'expulsar', jugadorId: id }); }
-        if (t.closest('[data-sol-ok]')) await resolver(t.closest('[data-sol-ok]').dataset.solOk, true);
-        if (t.closest('[data-sol-ko]')) await resolver(t.closest('[data-sol-ko]').dataset.solKo, false);
-        if (t.closest('[data-recargar]')) { const r = t.closest('[data-recargar]').dataset; await dm({ accion: 'recargar', pjId: r.recargar, nivel: r.nivel ? +r.nivel : undefined, poder: r.poder || undefined }); }
-        if (t.closest('[data-reenviar]')) { enviado = {}; await enviarFichas(); ui.toast('Fichas enviadas.'); }
-        if (t.closest('[data-olvidar]') && await ui.confirmar('Este navegador dejará de controlar la sala. La sala y sus datos siguen en el servidor; puedes volver con el código y la clave de DM.', { ok: 'Desconectar' })) olvidar();
+        if ('crear' in d) { el.disabled = true; await crear(); invitarAbierto = true; }
+        if ('invitar' in d) { invitarAbierto = !invitarAbierto; const p = $('.mesa__invitar', root); if (p) p.hidden = !invitarAbierto; }
+        if ('copiar' in d) { await navigator.clipboard.writeText(d.copiar); ui.toast('Copiado.'); }
+        if ('descanso' in d) { await dm({ accion: 'descanso', tipo: d.descanso }); ui.toast(d.descanso === 'largo' ? 'Descanso largo: vida y espacios al máximo.' : 'Descanso corto: pactos y poderes recargados.'); }
+        if ('solOk' in d) await resolver(d.solOk, true);
+        if ('solKo' in d) await resolver(d.solKo, false);
+        if ('pg' in d) { const n = +d.pg; S.update(st => { const f = st.personajes.find(x => x.id === d.pj); if (f) f.pg = Math.max(0, Math.min(f.pgMax, f.pg + n)); }); }
+        if ('lvl' in d) {
+          const n = +d.lvl;
+          S.update(st => { const f = st.personajes.find(x => x.id === d.pj); if (!f) return; f.nivel = Math.max(1, Math.min(20, (f.nivel || 1) + n)); if (f.gen) TFF.npc.recalcular(f); });
+          const f = S.find('personajes', d.pj); ui.toast(`${f.nombre}: nivel ${f.nivel} · ${f.pgMax} PG`);
+        }
+        if ('recargar' in d) await dm({ accion: 'recargar', pjId: d.recargar, nivel: d.nivel ? +d.nivel : undefined, poder: d.poder || undefined });
+        if ('ver' in d) { preview = preview === d.ver ? null : d.ver; pintar(); pintarMovil(); }
+        if ('cerrarVer' in d) { preview = null; pintar(); pintarMovil(); }
+        if ('expulsar' in d && await ui.confirmar('¿Sacar a este jugador de la sala? Podrá volver a entrar con su nombre.', { ok: 'Sacar' })) await dm({ accion: 'expulsar', jugadorId: d.expulsar });
+        if ('olvidar' in d && await ui.confirmar('Este navegador dejará de controlar la sala. La sala sigue en el servidor; puedes volver con el código y la clave de DM.', { ok: 'Desconectar' })) olvidar();
       } catch (err) { ui.toast(err.message, 'error'); }
     });
-    m.body.addEventListener('change', async e => {
+    root.addEventListener('toggle', e => { if (e.target.matches('.mesa__log')) logAbierto = e.target.open; }, true);
+    root.addEventListener('change', async e => {
       const t = e.target;
       try {
-        if (t.matches('[data-asignar]')) await dm({ accion: 'asignar', jugadorId: t.dataset.asignar, pjId: t.value || null });
+        if (t.matches('[data-asignar]')) {
+          // El select de una tarjeta asigna un jugador a ese PJ.
+          const pjId = t.dataset.asignar, jugadorId = t.value;
+          const antes = vista.jugadores.find(j => j.pjId === pjId);
+          if (antes && antes.id !== jugadorId) await dm({ accion: 'asignar', jugadorId: antes.id, pjId: null });
+          if (jugadorId) await dm({ accion: 'asignar', jugadorId, pjId });
+        }
         if (t.matches('[data-libre]')) await dm({ accion: 'libre', valor: t.checked });
       } catch (err) { ui.toast(err.message, 'error'); }
     });
-    m.body.addEventListener('submit', async e => {
+    root.addEventListener('submit', async e => {
       e.preventDefault();
       const fd = new FormData(e.target);
       try { await unirseComoDM(fd.get('codigo'), fd.get('clave')); } catch (err) { ui.toast(err.message, 'error'); }
     });
   }
 
-  function htmlSinSala() {
-    return `<div class="sala">
-      <p class="eyebrow">Sala de jugadores</p>
-      <h2 class="sala__h">Que cada jugador lleve su ficha en el móvil</h2>
-      <p class="sala__lead">Al crear la sala tendrás un código y un QR. Los jugadores entran con su nombre, tú les asignas su PJ y desde aquí desbloqueas cada conjuro cuando aciertan la tirada.</p>
-      <div class="row-actions" style="justify-content:flex-start"><button class="btn btn--yellow" data-crear>Crear sala para ${esc(S.state.campana.titulo)}</button></div>
-      <details class="sala__alt"><summary>Ya tengo una sala (otro equipo del DM)</summary>
-        <form class="sala__form">
-          <label class="field"><span>Código</span><input name="codigo" required autocomplete="off" maxlength="8" style="text-transform:uppercase"></label>
-          <label class="field"><span>Clave de DM</span><input name="clave" required autocomplete="off"></label>
-          <button class="btn btn--sm">Conectar</button>
-        </form>
-      </details>
-    </div>`;
-  }
-
-  // Espacios y poderes de un PJ: cada recurso gastado se puede recargar con un clic.
-  function recursos(f) {
+  function htmlRecursos(f, sv) {
     const esp = (f.conj && f.conj.espacios) || {};
-    const u = f.usados || {};
+    const u = (f.conj && f.conj.usados) || {};
+    const usos = (sv && sv.usos) || {};
     const partes = Object.keys(esp).map(k => {
       const gast = u[k] || 0;
       const pips = Array.from({ length: esp[k] }, (_, i) => `<i class="${i < esp[k] - gast ? 'is-full' : ''}"></i>`).join('');
-      return `<button class="pips" ${gast ? `data-recargar="${f.id}" data-nivel="${k}" title="Recargar un espacio de nivel ${k}"` : `disabled title="Nivel ${k}: completo"`}><small>N${k}</small>${pips}</button>`;
+      return `<button class="pips" ${gast && sv ? `data-recargar="${f.id}" data-nivel="${k}" title="Recargar un espacio de nivel ${k}"` : `disabled title="Nivel ${k}"`}><small>Nv ${k}</small>${pips}</button>`;
     });
-    (f.poderes || []).forEach(p => {
-      const usado = (f.usos || {})[p.n] >= (p.max || 1);
-      partes.push(`<button class="pips" ${usado ? `data-recargar="${f.id}" data-poder="${esc(p.n)}" title="Recargar ${esc(p.n)}"` : `disabled title="${esc(p.n)}: disponible"`}><small>${esc(p.n.split(' ').pop())}</small><i class="${usado ? '' : 'is-full'}"></i></button>`);
+    ((sv && sv.poderes) || []).forEach(p => {
+      const usado = (usos[p.n] || 0) >= (p.max || 1);
+      partes.push(`<button class="pips" ${usado ? `data-recargar="${f.id}" data-poder="${esc(p.n)}" title="Recargar ${esc(p.n)}"` : `disabled title="${esc(p.n)}: disponible"`}><small>${esc(p.n.replace(/^Arma de /, ''))}</small><i class="${usado ? '' : 'is-full'}"></i></button>`);
     });
-    if (!partes.length) return '';
-    const algo = Object.keys(u).some(k => u[k]) || Object.keys(f.usos || {}).length;
-    return partes.join('') + (algo ? `<button class="btn btn--sm btn--ghost" data-recargar="${f.id}" title="Recargar todo">↻</button>` : '');
+    return partes.join('');
   }
 
-  function htmlSala() {
+  function htmlTarjeta(f) {
     const v = vista;
-    const url = enlace();
-    const opciones = sel => `<option value="">Sin personaje</option>` + pjs().map(f => `<option value="${f.id}" ${sel === f.id ? 'selected' : ''}>${esc(f.nombre)}</option>`).join('');
-    const pend = v ? v.solicitudes : [];
-    return `<div class="sala sala--on">
-      <div class="sala__top">
-        <div class="sala__qr">${qrSVG(url)}</div>
-        <div class="sala__id">
-          <p class="eyebrow">Sala ${conectado ? '<span class="sala__live">● en vivo</span>' : '<span class="sala__off">● sin conexión</span>'}</p>
-          <p class="sala__code" aria-label="Código de sala">${esc(cfg.codigo)}</p>
-          <p class="sala__lead">Escanea el QR o entra en <b>${esc(url.replace(/^https?:\/\//, '').replace(/\?.*$/, ''))}</b> con el código.</p>
-          <div class="sala__btns">
-            <button class="btn btn--sm" data-copiar="${esc(url)}">Copiar enlace</button>
-            <button class="btn btn--sm btn--ghost" data-copiar="${esc(cfg.dmToken)}" title="Para controlar la sala desde otro equipo">Copiar clave de DM</button>
-          </div>
+    const sv = v && v.fichas[f.id];
+    const jug = v ? v.jugadores.find(j => j.pjId === f.id) : null;
+    const p = f.pgMax ? Math.max(0, Math.min(100, f.pg / f.pgMax * 100)) : 0;
+    const tono = p <= 25 ? 'is-low' : p <= 50 ? 'is-mid' : '';
+    const pend = v ? v.solicitudes.filter(s => s.pjId === f.id) : [];
+    const libres = v ? v.jugadores.filter(j => !j.pjId || j.pjId === f.id) : [];
+    return `<article class="pjc ${f.estado !== 'activo' ? 'is-out' : ''} ${preview === f.id ? 'is-viendo' : ''}">
+      <div class="pjc__head">
+        <div class="pjc__foto" data-dz-click data-foto="${f.id}" title="Arrastra, pega o haz clic para cambiar la foto" tabindex="0" role="button" aria-label="Cambiar la foto de ${esc(f.nombre)}">
+          ${f.img ? `<img data-img="${esc(f.img)}" alt="">` : `<span>${esc((f.nombre || '?')[0])}</span>`}
+          <em>Foto</em>
+        </div>
+        <div class="pjc__id">
+          <h2>${esc(f.nombre)}</h2>
+          <p>${esc([f.raza, f.clase].filter(Boolean).join(' · '))}</p>
+          <div class="pjc__lvl"><button data-lvl="-1" data-pj="${f.id}" aria-label="Bajar nivel">−</button><span>Nivel <b>${f.nivel}</b></span><button data-lvl="1" data-pj="${f.id}" aria-label="Subir nivel">+</button></div>
         </div>
       </div>
-
-      ${pend.length ? `<section class="sala__sec"><h3>Peticiones</h3>${pend.map(s => {
-        const f = v.fichas[s.pjId] || {};
-        return `<div class="sala__sol ${s.estado === 'permitida' ? 'is-ok' : ''}"><span><b>${esc(f.nombre)}</b> · ${esc(s.nombre)}${s.nivel ? ` <small>nivel ${s.nivel}</small>` : ''}</span>
-          ${s.estado === 'pendiente' ? `<span><button class="btn btn--sm" data-sol-ok="${s.id}">Acierta</button> <button class="btn btn--sm btn--danger" data-sol-ko="${s.id}">Falla</button></span>` : '<small>Desbloqueado · esperando a que lance</small>'}</div>`;
-      }).join('')}</section>` : ''}
-
-      <section class="sala__sec">
-        <h3>Jugadores</h3>
-        ${v && v.jugadores.length ? `<div class="sala__jug">${v.jugadores.map(j => {
-          const f = j.pjId && v.fichas[j.pjId];
-          return `<div class="sala__row">
-            <span class="sala__who"><i class="${j.conectado ? 'is-on' : ''}" title="${j.conectado ? 'Conectado' : 'Desconectado'}"></i>${esc(j.nombre)}</span>
-            <select data-asignar="${j.id}" aria-label="Personaje de ${esc(j.nombre)}">${opciones(j.pjId)}</select>
-            <span class="sala__hp">${f ? `${f.pg}/${f.pgMax} PG` : ''}</span>
-            <span class="sala__slots">${f ? recursos(f) : ''}</span>
-            <button class="btn btn--sm btn--ghost btn--icon" data-expulsar="${j.id}" aria-label="Sacar a ${esc(j.nombre)}">×</button>
-          </div>`;
-        }).join('')}</div>` : '<p class="src">Todavía no ha entrado nadie.</p>'}
-      </section>
-
-      <section class="sala__sec sala__ctl">
-        <label class="sala__switch"><input type="checkbox" data-libre ${v && v.sala.libre ? 'checked' : ''}><span>Lanzamiento libre <small>Sin pedir permiso. Útil fuera de combate.</small></span></label>
-        <div class="sala__btns">
-          <button class="btn btn--sm btn--ghost" data-descanso="corto">Descanso corto</button>
-          <button class="btn btn--sm btn--ghost" data-descanso="largo">Descanso largo</button>
-          <button class="btn btn--sm btn--ghost" data-reenviar>Reenviar fichas</button>
-          <button class="btn btn--sm btn--ghost" data-olvidar>Desconectar</button>
-        </div>
-      </section>
-
-      ${v && v.registro.length ? `<section class="sala__sec"><h3>Registro</h3><ol class="sala__log">${v.registro.slice(-8).reverse().map(r => `<li><time>${new Date(r.t).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}</time>${esc(r.texto)}</li>`).join('')}</ol></section>` : ''}
-    </div>`;
+      <div class="pjc__vida ${tono}">
+        <div class="pjc__pg"><b>${f.pg}</b><span>/ ${f.pgMax} PG</span><small>CA ${f.ca}${f.conj ? ` · CD ${f.conj.cd}` : ''}</small></div>
+        <div class="pjc__bar"><i style="width:${p}%"></i></div>
+        <div class="pjc__pgb">${[-5, -1, 1, 5].map(n => `<button data-pg="${n}" data-pj="${f.id}" class="${n < 0 ? 'is-dmg' : 'is-cura'}" aria-label="${n < 0 ? 'Restar' : 'Sumar'} ${Math.abs(n)} PG a ${esc(f.nombre)}">${n > 0 ? '+' : '−'}${Math.abs(n)}</button>`).join('')}</div>
+      </div>
+      ${htmlRecursos(f, sv) ? `<div class="pjc__rec">${htmlRecursos(f, sv)}</div>` : ''}
+      ${pend.map(s => `<div class="pjc__sol ${s.estado === 'permitida' ? 'is-ok' : ''}"><span>${esc(s.nombre)}${s.nivel ? ` · nv ${s.nivel}` : ''}</span>${s.estado === 'pendiente' ? `<span><button class="btn btn--sm" data-sol-ok="${s.id}">Acierta</button><button class="btn btn--sm btn--danger" data-sol-ko="${s.id}">Falla</button></span>` : '<small>Desbloqueado</small>'}</div>`).join('')}
+      <footer class="pjc__foot">
+        ${cfg ? `<label class="pjc__jug"><i class="${jug && jug.conectado ? 'is-on' : ''}" title="${jug ? (jug.conectado ? 'Conectado' : 'Desconectado') : 'Sin jugador'}"></i>
+          <select data-asignar="${f.id}" data-keep="asig-${f.id}" aria-label="Jugador de ${esc(f.nombre)}"><option value="">Sin jugador</option>${libres.map(j => `<option value="${j.id}" ${jug && jug.id === j.id ? 'selected' : ''}>${esc(j.nombre)}</option>`).join('')}</select></label>
+          ${sv ? `<button class="pjc__ver" data-ver="${f.id}">${preview === f.id ? 'Cerrar vista' : 'Ver su móvil'}</button>` : ''}` : '<span class="pjc__nota">Crea la sala para asignar jugador</span>'}
+      </footer>
+    </article>`;
   }
 
-  function init() { boton(); dock(); if (cfg) conectar(); }
+  function htmlTop() {
+    const v = vista;
+    const espera = v ? v.jugadores.filter(j => !j.pjId) : [];
+    const url = cfg ? enlace() : '';
+    return `<header class="mesa__head">
+        <div>
+          <p class="mesa__k">${esc(S.state.campana.titulo)}</p>
+          <h1>Mesa</h1>
+        </div>
+        ${cfg ? `<div class="mesa__ctl">
+          <button class="mesa__sala" data-invitar aria-expanded="${invitarAbierto}" aria-label="Invitar jugadores"><i class="${conectado ? 'is-on' : ''}"></i><span>${esc(cfg.codigo)}</span><small>Invitar</small></button>
+          <label class="mesa__libre"><input type="checkbox" data-libre ${v && v.sala.libre ? 'checked' : ''}><span>Lanzamiento libre</span></label>
+          <button class="btn btn--sm btn--ghost" data-descanso="corto">Descanso corto</button>
+          <button class="btn btn--sm btn--ghost" data-descanso="largo">Descanso largo</button>
+        </div>` : `<div class="mesa__ctl"><button class="btn btn--yellow" data-crear>Crear sala para jugadores</button></div>`}
+      </header>
+      ${cfg ? `<div class="mesa__invitar" ${invitarAbierto ? '' : 'hidden'}>
+        <div class="mesa__qr">${qrSVG(url)}</div>
+        <div>
+          <p class="mesa__k">Código de sala</p><p class="mesa__code">${esc(cfg.codigo)}</p>
+          <p class="mesa__url">${esc(url.replace(/^https?:\/\//, ''))}</p>
+          <div class="mesa__btns"><button class="btn btn--sm" data-copiar="${esc(url)}">Copiar enlace</button><button class="btn btn--sm btn--ghost" data-copiar="${esc(cfg.dmToken)}">Copiar clave de DM</button><button class="btn btn--sm btn--ghost" data-olvidar>Desconectar</button></div>
+        </div>
+      </div>` : `<p class="mesa__intro">Crea una sala y tus jugadores entran desde el móvil con un QR. Les asignas su PJ aquí, y desde aquí controlas su vida, sus recursos y lo que pueden lanzar.</p>
+      <details class="mesa__alt"><summary>Ya tengo una sala</summary>
+        <form class="mesa__form"><label class="field"><span>Código</span><input name="codigo" required maxlength="8" autocomplete="off"></label><label class="field"><span>Clave de DM</span><input name="clave" required autocomplete="off"></label><button class="btn btn--sm">Conectar</button></form>
+      </details>`}
+      ${espera.length ? `<div class="mesa__espera"><span>Esperando personaje</span>${espera.map(j => `<span class="mesa__chip"><i class="${j.conectado ? 'is-on' : ''}"></i>${esc(j.nombre)}<button data-expulsar="${j.id}" aria-label="Sacar a ${esc(j.nombre)}">×</button></span>`).join('')}<small>Asígnalos desde la tarjeta de cada PJ.</small></div>` : ''}`;
+  }
+  function htmlLog() {
+    const v = vista;
+    return v && v.registro.length ? `<details class="mesa__log" ${logAbierto ? 'open' : ''}><summary>Registro de la sala</summary><ol>${v.registro.slice(-12).reverse().map(r => `<li><time>${new Date(r.t).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}</time>${esc(r.texto)}</li>`).join('')}</ol></details>` : '';
+  }
+
+  function init() {
+    boton(); dock();
+    const root = $('#mesa'); if (root) mesa(root);
+    if (cfg) conectar();
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 
-  TFF.sala = { get cfg() { return cfg; }, get vista() { return vista; }, panel, enviarFichas };
+  TFF.sala = { get cfg() { return cfg; }, get vista() { return vista; }, enviarFichas };
 })();
