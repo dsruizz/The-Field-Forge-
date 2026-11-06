@@ -33,6 +33,7 @@
   function load() {
     state = readJSON(KEY);
     if (!state || !state.version) { state = clone(TFF.seed()); writeJSON(KEY, state); }
+    if (TFF.aplicarParches && TFF.aplicarParches(state)) writeJSON(KEY, state);
     stage = Object.assign(stageDefault(), readJSON(STAGE_KEY) || {});
     return state;
   }
@@ -80,7 +81,7 @@
     ping() { send({ t: 'ping' }); },
     find(col, id) { return (store.state[col] || []).find(x => x.id === id); },
     reset() {
-      state = clone(TFF.seed()); writeJSON(KEY, state);
+      state = clone(TFF.seed()); TFF.aplicarParches && TFF.aplicarParches(state); writeJSON(KEY, state);
       stage = stageDefault(); writeJSON(STAGE_KEY, stage);
       send({ t: 'state' }); send({ t: 'stage' }); emit('state', false); emit('stage', false);
     },
@@ -106,7 +107,7 @@
         const blob = await (await fetch(url)).blob();
         await TFF.img.putBlob(ref.slice(4), blob);
       }
-      state = data.estado; writeJSON(KEY, state); send({ t: 'state' }); emit('state', false);
+      state = data.estado; TFF.aplicarParches && TFF.aplicarParches(state); writeJSON(KEY, state); send({ t: 'state' }); emit('state', false);
     }
   };
 
