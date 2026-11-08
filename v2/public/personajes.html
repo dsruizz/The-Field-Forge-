@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mis personajes · The Field Forge</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="img/favicon.ico">
+  <link rel="stylesheet" href="css/forja.css">
+  <script src="js/comun.js"></script>
+  <script src="vendor/gsap/gsap.min.js"></script>
+  <script src="js/reglas/dados.js"></script>
+  <script src="js/reglas/reglas5e.js"></script>
+  <script src="js/reglas/npc.js"></script>
+  <script src="js/ficha.js"></script>
+</head>
+<body>
+  <header class="barra">
+    <nav class="envoltura barra__in" aria-label="Principal">
+      <a class="barra__marca" href="campanas.html" aria-label="Mis campañas"><span class="logo"></span></a>
+      <div class="barra__nav" data-nav></div>
+      <div class="barra__acciones">
+        <button class="boton boton--fantasma boton--icono" type="button" data-icono-tema></button>
+        <div data-menu-usuario></div>
+      </div>
+    </nav>
+  </header>
+
+  <main class="envoltura" data-contenido aria-live="polite"></main>
+
+  <dialog class="hoja hoja--ancha" id="ver" aria-label="Ficha">
+    <div class="hoja__in">
+      <div class="hoja__cab"><span></span><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div data-cuerpo></div>
+      <div class="hoja__pie" data-pie></div>
+    </div>
+  </dialog>
+
+  <script src="js/personajes.js"></script>
+</body>
+</html>

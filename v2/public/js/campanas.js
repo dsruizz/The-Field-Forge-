@@ -48,8 +48,10 @@
       ${c.sinopsis ? `<p class="camp__sin">${F.esc(c.sinopsis)}</p>` : ''}
       <div class="camp__datos">
         <span><b>${c.partidas}</b> ${c.partidas === 1 ? 'sesión' : 'sesiones'}</span>
+        ${c.nivelMedio ? `<span>Nivel <b>${c.nivelMedio}</b></span>` : ''}
+        ${c.pjs && c.pjs.length ? `<span><b>${c.pjs.length}</b> PJ</span>` : ''}
         <span><b>${c.jugadores}</b> ${c.jugadores === 1 ? 'jugador' : 'jugadores'}</span>
-        ${c.rol !== 'dm' ? `<span>DM: <b>${F.esc(c.dm)}</b></span>` : ''}
+        ${c.rol !== 'dm' ? `<span>DM <b>${F.esc(c.dm)}</b></span>` : ''}
       </div>
     </a>`;
 
@@ -67,6 +69,7 @@
             <button class="boton boton--secundario boton--grande" type="button" data-abrir="unirse">${F.icono('llave')}Unirme a una</button>
           </div>
         </div>`;
+      F.entrar(lista.children);
     } catch (err) {
       lista.innerHTML = `<p class="aviso">${F.esc(err.message)}</p>`;
     } finally { lista.removeAttribute('aria-busy'); }

@@ -8,11 +8,18 @@
   <link rel="icon" href="img/favicon.ico">
   <link rel="stylesheet" href="css/forja.css">
   <script src="js/comun.js"></script>
+  <script src="vendor/gsap/gsap.min.js"></script>
+  <script src="js/reglas/dados.js"></script>
+  <script src="js/reglas/reglas5e.js"></script>
+  <script src="js/reglas/npc.js"></script>
+  <script src="js/reglas/bestiario.js"></script>
+  <script src="js/ficha.js"></script>
 </head>
 <body>
   <header class="barra">
     <nav class="envoltura barra__in" aria-label="Principal">
       <a class="barra__marca" href="campanas.html" aria-label="Mis campañas"><span class="logo"></span></a>
+      <div class="barra__nav" data-nav></div>
       <div class="barra__acciones">
         <button class="boton boton--fantasma boton--icono" type="button" data-icono-tema></button>
         <div data-menu-usuario></div>
@@ -20,14 +27,115 @@
     </nav>
   </header>
 
-  <main class="envoltura" data-contenido aria-live="polite"></main>
+  <section class="portada-camp" data-portada hidden>
+    <div class="escena__ilus" aria-hidden="true"><img src="img/ilustracion.svg" alt=""></div>
+    <div class="escena__velo" aria-hidden="true"></div>
+    <div class="envoltura portada-camp__in">
+      <a class="miga" href="campanas.html" data-miga>Mis campañas</a>
+      <div class="portada-camp__fila">
+        <div>
+          <h1 data-titulo></h1>
+          <p class="portada-camp__amb" data-amb></p>
+        </div>
+        <div class="cabecera__acciones" data-acciones-portada></div>
+      </div>
+      <div class="cifras" data-cifras></div>
+    </div>
+  </section>
 
+  <nav class="pestanas-camp" aria-label="Secciones de la campaña" data-pestanas-caja hidden>
+    <div class="envoltura pestanas-camp__in" role="tablist" data-pestanas></div>
+  </nav>
+
+  <main class="envoltura panel-camp" data-contenido aria-live="polite"></main>
+
+  <!-- Ver un personaje -->
+  <dialog class="hoja hoja--ancha" id="ver-ficha" aria-label="Ficha">
+    <div class="hoja__in">
+      <div class="hoja__cab"><span></span><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div data-cuerpo></div>
+      <div class="hoja__pie" data-pie></div>
+    </div>
+  </dialog>
+
+  <!-- Acontecimiento -->
+  <dialog class="hoja hoja--ancha" id="evento" aria-labelledby="evento-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab"><h2 id="evento-titulo">Nuevo acontecimiento</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div class="fila">
+        <div class="campo"><label for="ev-sesion">Sesión</label><input class="entrada" id="ev-sesion" name="sesion" type="number" min="1" max="999" required></div>
+        <div class="campo"><label for="ev-tipo">Tipo</label><select class="entrada" id="ev-tipo" name="tipo"></select></div>
+      </div>
+      <div class="campo"><label for="ev-sestit">Título de la sesión</label><input class="entrada" id="ev-sestit" name="sesionTitulo" maxlength="120"></div>
+      <div class="campo"><label for="ev-titulo">Título</label><input class="entrada" id="ev-titulo" name="titulo" required maxlength="140"></div>
+      <div class="campo"><label for="ev-lugar">Lugar</label><input class="entrada" id="ev-lugar" name="lugar" maxlength="140"></div>
+      <div class="campo"><label for="ev-texto">Qué pasó</label><textarea class="entrada" id="ev-texto" name="texto" maxlength="6000"></textarea></div>
+      <div class="campo"><label for="ev-cita">Cita <span class="suave">(opcional)</span></label><input class="entrada" id="ev-cita" name="cita" maxlength="240"></div>
+      <div class="campo"><span class="etq">Quién aparece</span><div class="selector-enlaces" data-enlaces></div></div>
+      <label class="casilla"><input type="checkbox" name="oculto"> Solo para el DM (los jugadores no lo ven)</label>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Guardar</button></div>
+    </form>
+  </dialog>
+
+  <!-- Editar personaje -->
+  <dialog class="hoja" id="editar-ficha" aria-labelledby="ef-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab"><h2 id="ef-titulo">Editar personaje</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div class="retrato-carga">
+        <div class="ficha__retrato" data-retrato></div>
+        <div class="campo"><label for="ef-img">Retrato</label><input class="entrada" id="ef-img" type="file" accept="image/*"><button class="boton boton--fantasma boton--chico" type="button" data-quitar-img>Quitar imagen</button></div>
+      </div>
+      <div class="campo"><label for="ef-nombre">Nombre</label><input class="entrada" id="ef-nombre" name="nombre" required maxlength="80"></div>
+      <div class="campo"><label for="ef-rol">Rol en la historia</label><input class="entrada" id="ef-rol" name="rol" maxlength="140"></div>
+      <div class="fila">
+        <div class="campo"><label for="ef-tipo">Tipo</label><select class="entrada" id="ef-tipo" name="tipo"><option value="pj">PJ</option><option value="npc">NPC</option><option value="enemigo">Enemigo</option></select></div>
+        <div class="campo"><label for="ef-estado">Estado</label><select class="entrada" id="ef-estado" name="estado"><option value="activo">Activo</option><option value="derrotado">Derrotado</option><option value="muerto">Muerto</option><option value="desaparecido">Desaparecido</option></select></div>
+      </div>
+      <div class="fila">
+        <div class="campo"><label for="ef-actitud">Actitud</label><select class="entrada" id="ef-actitud" name="actitud"><option>Amistoso</option><option>Indiferente</option><option>Hostil</option></select></div>
+        <div class="campo"><label for="ef-nivel">Nivel</label><input class="entrada" id="ef-nivel" name="nivel" type="number" min="1" max="20"></div>
+        <div class="campo"><label for="ef-pg">PG actuales</label><input class="entrada" id="ef-pg" name="pg" type="number" min="0" max="999"></div>
+      </div>
+      <div class="campo"><label for="ef-notas">Notas del DM</label><textarea class="entrada" id="ef-notas" name="notas" maxlength="4000"></textarea></div>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Guardar</button></div>
+    </form>
+  </dialog>
+
+  <!-- Nuevo personaje (DM) -->
+  <dialog class="hoja" id="nuevo-pj" aria-labelledby="np-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab"><h2 id="np-titulo">Añadir a la campaña</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div class="segmento" role="group" aria-label="Cómo crearlo" data-modo-np>
+        <button type="button" aria-pressed="true" data-modo="forjar">Forjar NPC</button>
+        <button type="button" aria-pressed="false" data-modo="bestiario">Desde el bestiario</button>
+      </div>
+      <div class="form" data-np="forjar">
+        <div class="campo"><label for="np-nombre">Nombre <span class="suave">(vacío = al azar)</span></label><input class="entrada" id="np-nombre" name="nombre" maxlength="80"></div>
+        <div class="fila">
+          <div class="campo"><label for="np-tipo">Tipo</label><select class="entrada" id="np-tipo" name="tipo"><option value="npc">NPC</option><option value="enemigo">Enemigo</option><option value="pj">PJ</option></select></div>
+          <div class="campo"><label for="np-nivel">Nivel</label><input class="entrada" id="np-nivel" name="nivel" type="number" min="1" max="20" value="1"></div>
+        </div>
+        <div class="fila">
+          <div class="campo"><label for="np-raza">Especie</label><select class="entrada" id="np-raza" name="raza"></select></div>
+          <div class="campo"><label for="np-clase">Clase</label><select class="entrada" id="np-clase" name="clase"></select></div>
+        </div>
+        <div class="campo"><label for="np-rol">Rol en la historia</label><input class="entrada" id="np-rol" name="rol" maxlength="140"></div>
+      </div>
+      <div class="form" data-np="bestiario" hidden>
+        <div class="campo"><label for="np-criatura">Criatura</label><select class="entrada" id="np-criatura" name="criatura"></select></div>
+        <div class="campo"><label for="np-cnombre">Nombre en la campaña <span class="suave">(opcional)</span></label><input class="entrada" id="np-cnombre" name="cnombre" maxlength="80"></div>
+      </div>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Añadir</button></div>
+    </form>
+  </dialog>
+
+  <!-- Editar campaña -->
   <dialog class="hoja" id="editar" aria-labelledby="editar-titulo">
     <form class="hoja__in form" method="dialog" novalidate>
-      <div class="hoja__cab">
-        <h2 id="editar-titulo">Editar campaña</h2>
-        <button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button>
-      </div>
+      <div class="hoja__cab"><h2 id="editar-titulo">Editar campaña</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
       <div class="campo"><label for="ed-nombre">Nombre</label><input class="entrada" id="ed-nombre" name="nombre" required minlength="2" maxlength="80"></div>
       <div class="campo"><label for="ed-amb">Ambientación</label><input class="entrada" id="ed-amb" name="ambientacion" maxlength="120"></div>
       <div class="campo"><label for="ed-sin">De qué va</label><textarea class="entrada" id="ed-sin" name="sinopsis" maxlength="1200"></textarea></div>

@@ -39,8 +39,8 @@ services:
     environment:
       - DATA_DIR=/data
       - PUBLIC_DIR=/public
-      - TFF_BASE=/v2/
-      - TFF_MAX_USUARIOS=3
+      - TFF_BASE=/
+      - TFF_MAX_USUARIOS=10
       # Si prefieres fijar tú el código de invitación:
       # - TFF_INVITACION=FORJA-XXXX
     volumes:

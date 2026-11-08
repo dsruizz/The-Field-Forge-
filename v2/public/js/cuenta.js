@@ -2,6 +2,7 @@
 (async () => {
   const F = window.Forja;
   F.montarBarra(null);
+  F.escena({ parallax: false });
   const params = new URLSearchParams(location.search);
   const volver = params.get('volver');
   const destino = volver && /^[\w-]+\.html(\?[\w=&%-]*)?$/.test(volver) ? volver : 'campanas.html';

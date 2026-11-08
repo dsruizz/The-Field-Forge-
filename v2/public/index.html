@@ -4,84 +4,52 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>The Field Forge · Campañas de rol presenciales</title>
-  <meta name="description" content="Juega tus campañas de rol en la mesa y guarda lo que pasa en tiempo real. Crónica, fichas y mapas compartidos con tu grupo por invitación.">
-  <meta name="theme-color" content="#161616" media="(prefers-color-scheme: dark)">
-  <meta name="theme-color" content="#f5f5f3" media="(prefers-color-scheme: light)">
+  <meta name="description" content="Juega tus campañas de rol en la mesa y guarda lo que pasa en tiempo real: crónica, personajes y grupo en un solo lugar.">
+  <meta name="theme-color" content="#161616">
   <link rel="icon" href="img/favicon.ico">
-  <link rel="preload" href="fuentes/poppins-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fuentes/poppins-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fuentes/unifrakturcook-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/forja.css">
   <script src="js/comun.js"></script>
+  <script src="vendor/gsap/gsap.min.js" defer></script>
 </head>
 <body>
-  <header class="barra">
+  <header class="barra barra--escena">
     <nav class="envoltura barra__in" aria-label="Principal">
       <a class="barra__marca" href="./" aria-label="The Field Forge, inicio"><span class="logo"></span></a>
       <div class="barra__acciones" data-acciones>
-        <button class="boton boton--fantasma boton--icono" type="button" data-icono-tema></button>
         <a class="boton boton--fantasma" href="cuenta.html">Entrar</a>
         <a class="boton boton--primario" href="cuenta.html?modo=registro">Crear cuenta</a>
       </div>
     </nav>
   </header>
 
-  <main>
-    <section class="heroe">
-      <div class="envoltura heroe__in">
-        <span class="etiqueta">Beta privada · campañas de rol presenciales</span>
-        <h1>Tu mesa, tus dados.<span class="gotica">Nosotros <em>recordamos</em>.</span></h1>
-        <p class="heroe__sub">The Field Forge acompaña tus partidas en persona: guarda en tiempo real lo que ocurre, reúne fichas y mapas, y lo comparte con tu grupo por invitación.</p>
-        <div class="heroe__cta">
-          <a class="boton boton--primario boton--grande" href="cuenta.html?modo=registro">Crear cuenta</a>
-          <a class="boton boton--secundario boton--grande" href="cuenta.html">Ya tengo cuenta</a>
-        </div>
-        <p class="heroe__nota" data-plazas>Registro con código de invitación.</p>
+  <main class="escena">
+    <div class="escena__ilus" aria-hidden="true" data-ilus><img src="img/ilustracion.svg" alt=""></div>
+    <div class="escena__velo" aria-hidden="true"></div>
+    <canvas class="escena__chispas" aria-hidden="true" data-chispas></canvas>
+    <div class="escena__in">
+      <h1>
+        <span class="linea"><span data-anim>Tu mesa, tus dados.</span></span>
+        <span class="linea gotica"><span data-anim>Nosotros <span class="resalte">recordamos</span>.</span></span>
+      </h1>
+      <p class="escena__sub" data-anim>The Field Forge acompaña tus partidas de rol en persona: guarda la crónica de cada sesión, los personajes y a tu grupo en un solo lugar.</p>
+      <div class="escena__cta" data-anim data-cta>
+        <a class="boton boton--primario boton--grande" href="cuenta.html?modo=registro">Empezar mi campaña</a>
+        <a class="boton boton--secundario boton--grande" href="cuenta.html">Ya tengo cuenta</a>
       </div>
-    </section>
-
-    <section class="seccion" aria-labelledby="como">
-      <div class="envoltura">
-        <h2 class="seccion__titulo" id="como">Tres pasos, y a jugar.</h2>
-        <ol class="pasos">
-          <li class="paso"><h3>Crea tu campaña</h3><p>Ponle nombre, ambientación y una contraseña. Quien la crea es el DM y el único que puede editarla.</p></li>
-          <li class="paso"><h3>Invita a tu grupo</h3><p>Comparte el código y la contraseña. Cada jugador entra con su propia cuenta, desde el móvil o el portátil.</p></li>
-          <li class="paso"><h3>Juega y recuerda</h3><p>Durante la sesión, el proyector muestra lo que importa. Después, la crónica guarda todo para la próxima vez.</p></li>
-        </ol>
-      </div>
-    </section>
-
-    <section class="seccion" aria-labelledby="roles">
-      <div class="envoltura">
-        <h2 class="seccion__titulo" id="roles">Cada uno ve lo que le toca.</h2>
-        <div class="roles">
-          <article class="rol rol--dm">
-            <h3><span class="gotica">DM</span> Quien dirige</h3>
-            <ul>
-              <li>Crea y edita la campaña, la crónica, los mapas y los personajes no jugadores.</li>
-              <li>Decide qué se revela y qué sale en el proyector.</li>
-              <li>Invita y gestiona a su grupo.</li>
-            </ul>
-          </article>
-          <article class="rol">
-            <h3><span class="gotica">Jugador</span> Quien juega</h3>
-            <ul>
-              <li>Consulta la crónica de las sesiones pasadas.</li>
-              <li>Lleva su propio personaje desde el móvil.</li>
-              <li>No ve los secretos del DM ni puede cambiar la campaña.</li>
-            </ul>
-          </article>
-        </div>
-      </div>
-    </section>
+      <p class="escena__nota" data-anim data-plazas>Beta privada con invitación.</p>
+    </div>
   </main>
 
-  <footer class="pie">
+  <footer class="pie pie--escena">
     <div class="envoltura pie__in">
       <span class="logo"></span>
       <p>Reglas y criaturas basadas en el SRD 5.1 de Wizards of the Coast (CC BY 4.0). No afiliado a Wizards of the Coast.</p>
     </div>
   </footer>
 
+  <script src="js/escena.js"></script>
   <script src="js/inicio.js"></script>
 </body>
 </html>

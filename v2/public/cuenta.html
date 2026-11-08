@@ -8,8 +8,12 @@
   <link rel="icon" href="img/favicon.ico">
   <link rel="stylesheet" href="css/forja.css">
   <script src="js/comun.js"></script>
+  <script src="vendor/gsap/gsap.min.js" defer></script>
 </head>
 <body class="cuenta">
+  <div class="escena__ilus" aria-hidden="true" data-ilus><img src="img/ilustracion.svg" alt=""></div>
+  <div class="escena__velo" aria-hidden="true"></div>
+  <canvas class="escena__chispas" aria-hidden="true" data-chispas></canvas>
   <header class="barra">
     <nav class="envoltura barra__in" aria-label="Principal">
       <a class="barra__marca" href="./" aria-label="The Field Forge, inicio"><span class="logo"></span></a>
@@ -19,7 +23,7 @@
 
   <main class="cuenta__centro">
     <section class="tarjeta" aria-labelledby="titulo">
-      <h1 class="tarjeta__titulo" id="titulo">Bienvenido a la <span class="gotica">Forja</span></h1>
+      <h1 class="tarjeta__titulo" id="titulo">Entra a la <span class="gotica">Forja</span></h1>
 
       <div class="pestanas" role="tablist" aria-label="Elige una opción">
         <button type="button" role="tab" id="tab-entrar" aria-controls="form-entrar" aria-selected="true">Entrar</button>
@@ -73,6 +77,7 @@
     </section>
   </main>
 
+  <script src="js/escena.js"></script>
   <script src="js/cuenta.js"></script>
 </body>
 </html>

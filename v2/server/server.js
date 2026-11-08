@@ -17,7 +17,7 @@ const PORT = Number(process.env.PORT || 3100);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const PUBLIC_DIR = process.env.PUBLIC_DIR || path.join(__dirname, '..', 'public');
 const BASE = (process.env.TFF_BASE || '/').replace(/\/?$/, '/'); // ruta pública, p. ej. /v2/
-const MAX_USUARIOS = Number(process.env.TFF_MAX_USUARIOS || 3);
+const MAX_USUARIOS = Number(process.env.TFF_MAX_USUARIOS || 10);
 const DURACION_SESION = 30 * 24 * 3600 * 1000; // 30 días
 
 /* ---------- Base de datos ---------- */
@@ -65,7 +65,20 @@ db.exec(`
     fecha INTEGER,
     UNIQUE (campana_id, numero)
   );
+  CREATE TABLE IF NOT EXISTS personajes (
+    id TEXT PRIMARY KEY,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    datos TEXT NOT NULL,
+    creado INTEGER NOT NULL,
+    actualizado INTEGER NOT NULL
+  );
 `);
+// Columnas añadidas después: el contenido de la campaña (crónica, personajes, hilos, mapas) como un documento JSON.
+const columnas = db.prepare('PRAGMA table_info(campanas)').all().map(c => c.name);
+if (!columnas.includes('datos')) db.exec("ALTER TABLE campanas ADD COLUMN datos TEXT NOT NULL DEFAULT '{}'");
+if (!columnas.includes('rev')) db.exec('ALTER TABLE campanas ADD COLUMN rev INTEGER NOT NULL DEFAULT 0');
+const IMG_DIR = path.join(DATA_DIR, 'img');
+fs.mkdirSync(IMG_DIR, { recursive: true });
 
 const ajuste = (clave, def) => {
   const r = db.prepare('SELECT valor FROM ajustes WHERE clave = ?').get(clave);
@@ -98,11 +111,31 @@ const comprobarClave = (clave, guardado) => {
 };
 const HASH_FALSO = hashClave(crypto.randomBytes(12).toString('hex')); // iguala tiempos si el usuario no existe
 
+const DATOS_VACIOS = () => JSON.stringify({ version: 1, campana: { titulo: '', sinopsis: '', sesionActual: 1, sesiones: { 1: 'Sesión 1' } }, hilos: [], cronica: [], personajes: [], mapas: [] });
+function crearCampana(usuarioId, { nombre, ambientacion = '', sinopsis = '', clave, datos }) {
+  const id = crypto.randomBytes(6).toString('base64url');
+  let codigo; do codigo = codigoLegible(6); while (db.prepare('SELECT 1 FROM campanas WHERE codigo = ?').get(codigo));
+  const ahora = Date.now();
+  db.prepare(`INSERT INTO campanas (id, nombre, ambientacion, sinopsis, codigo, clave_hash, dueno_id, creada, actualizada, datos, rev)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`).run(id, nombre, ambientacion, sinopsis, codigo, hashClave(clave), usuarioId, ahora, ahora, datos || DATOS_VACIOS());
+  db.prepare("INSERT INTO membresias (campana_id, usuario_id, rol, unido) VALUES (?, ?, 'dm', ?)").run(id, usuarioId, ahora);
+  return db.prepare('SELECT * FROM campanas WHERE id = ?').get(id);
+}
+
 /* ---------- Consola ---------- */
 const [, , orden, a1, a2] = process.argv;
 if (orden === 'invitacion') {
   if (a1) { fijarAjuste('invitacion', a1); console.log('Código de invitación cambiado a', a1); }
   else console.log('Código de invitación:', invitacion());
+  process.exit(0);
+}
+if (orden === 'importar-tumba') {
+  const u = a1 && db.prepare('SELECT * FROM usuarios WHERE correo = ? OR usuario = ?').get(a1.toLowerCase(), a1);
+  if (!u) { console.log('Uso: node server.js importar-tumba CORREO_O_USUARIO (la cuenta debe existir)'); process.exit(1); }
+  const datos = fs.readFileSync(path.join(__dirname, 'semillas', 'tumba.json'), 'utf8');
+  const clave = codigoLegible(6).toLowerCase();
+  const c = crearCampana(u.id, { nombre: 'La Tumba de la Aniquilación', ambientacion: 'Chult · Reinos Olvidados', sinopsis: JSON.parse(datos).campana.sinopsis, clave, datos });
+  console.log(`Campaña creada para ${u.usuario}. Código: ${c.codigo} · Contraseña: ${clave}`);
   process.exit(0);
 }
 if (orden === 'clave') {
@@ -206,19 +239,68 @@ function abrirSesion(req, usuarioId) {
 }
 
 /* ---------- Campañas ---------- */
+function leerDatos(c) { try { return JSON.parse(c.datos || '{}'); } catch { return {}; } }
 function resumenCampana(c, rol) {
   const jugadores = db.prepare("SELECT COUNT(*) n FROM membresias WHERE campana_id = ? AND rol = 'jugador'").get(c.id).n;
-  const partidas = db.prepare('SELECT COUNT(*) n, MAX(fecha) ultima FROM partidas WHERE campana_id = ?').get(c.id);
   const dm = db.prepare('SELECT usuario FROM usuarios WHERE id = ?').get(c.dueno_id);
+  // Vista previa calculada con lo que la propia campaña va registrando.
+  const d = leerDatos(c);
+  const visibles = (d.cronica || []).filter(e => !e.oculto);
+  const sesiones = new Set(visibles.map(e => e.sesion)).size;
+  const pjs = (d.personajes || []).filter(p => p.tipo === 'pj' && p.estado !== 'muerto');
+  const nivelMedio = pjs.length ? Math.round(pjs.reduce((t, p) => t + (Number(p.nivel) || 1), 0) / pjs.length) : null;
+  const ultimo = visibles.slice().sort((a, b) => (b.sesion || 0) - (a.sesion || 0) || (b.t || 0) - (a.t || 0))[0];
   return {
     id: c.id, nombre: c.nombre, ambientacion: c.ambientacion, sinopsis: c.sinopsis,
-    rol, dm: dm ? dm.usuario : '', jugadores, partidas: partidas.n, ultimaPartida: partidas.ultima || null,
+    rol, dm: dm ? dm.usuario : '', jugadores, partidas: sesiones, nivelMedio, pjs: pjs.map(p => p.nombre),
+    acontecimientos: visibles.length, ultimo: ultimo ? { titulo: ultimo.titulo, sesion: ultimo.sesion } : null,
     actualizada: c.actualizada,
     ...(rol === 'dm' ? { codigo: c.codigo } : {})
   };
 }
 function membresia(campanaId, usuarioId) {
   return db.prepare('SELECT rol FROM membresias WHERE campana_id = ? AND usuario_id = ?').get(campanaId, usuarioId);
+}
+
+/* ---------- Contenido ---------- */
+// Lo que ve un jugador: sin acontecimientos ocultos, sin hilos ni notas del DM, y solo los personajes
+// que ya aparecieron en la crónica visible (o son PJ).
+function vistaJugador(d) {
+  const cronica = (d.cronica || []).filter(e => !e.oculto).map(({ notas, ...e }) => e);
+  const vistos = new Set(cronica.flatMap(e => e.enlaces || []));
+  const personajes = (d.personajes || [])
+    .filter(p => p.tipo === 'pj' || vistos.has(p.id))
+    .map(p => {
+      const { notas, gen, ...resto } = p;
+      if (p.tipo === 'pj') return resto;
+      // De NPC y enemigos solo lo que se ve en la mesa, sin estadísticas ni ganchos del DM.
+      return { id: p.id, tipo: p.tipo, nombre: p.nombre, img: p.img, rol: p.rol, raza: p.raza, actitud: p.actitud, estado: p.estado, pers: { rasgo: (p.pers || {}).rasgo || '' } };
+    });
+  const c = d.campana || {};
+  return { version: d.version, campana: { titulo: c.titulo, sinopsis: c.sinopsis, portada: c.portada, sesiones: c.sesiones, sesionActual: c.sesionActual }, cronica, personajes, hilos: [], mapas: [] };
+}
+function validarDatos(d) {
+  if (!d || typeof d !== 'object' || Array.isArray(d)) fallo(400, 'Datos de campaña no válidos.');
+  for (const k of ['cronica', 'personajes', 'hilos', 'mapas']) if (d[k] !== undefined && !Array.isArray(d[k])) fallo(400, 'Datos de campaña no válidos.');
+  return { ...d, version: d.version || 1, campana: d.campana || {}, cronica: d.cronica || [], personajes: d.personajes || [], hilos: d.hilos || [], mapas: d.mapas || [] };
+}
+function validarFicha(f) {
+  if (!f || typeof f !== 'object' || Array.isArray(f)) fallo(400, 'Ficha no válida.');
+  const nombre = texto(f.nombre, 80);
+  if (nombre.length < 1) fallo(400, 'Tu personaje necesita un nombre.');
+  if (f.img && !/^data:image\/(png|jpe?g|webp);base64,/.test(f.img)) fallo(400, 'La imagen no es válida.');
+  if (f.img && f.img.length > 900 * 1024) fallo(400, 'La imagen es demasiado grande.');
+  const { id, actualizado, ...resto } = f;
+  return { ...resto, nombre };
+}
+function servirImagen(res, campanaId, nombre) {
+  const archivo = path.join(IMG_DIR, campanaId, path.basename(nombre));
+  fs.stat(archivo, (err, st) => {
+    if (err || !st.isFile()) { res.writeHead(404); return res.end(); }
+    const ext = path.extname(archivo);
+    res.writeHead(200, { 'Content-Type': TIPOS[ext] || 'application/octet-stream', 'Cache-Control': 'private, max-age=86400' });
+    fs.createReadStream(archivo).pipe(res);
+  });
 }
 
 /* ---------- Rutas de la API ---------- */
@@ -291,13 +373,7 @@ async function api(req, res, ruta) {
     const nombre = texto(b.nombre, 80), clave = String(b.clave || '');
     if (nombre.length < 2) fallo(400, 'Ponle un nombre a la campaña.');
     if (clave.length < 4 || clave.length > 100) fallo(400, 'La contraseña de la campaña necesita al menos 4 caracteres.');
-    const id = crypto.randomBytes(6).toString('base64url');
-    let codigo; do codigo = codigoLegible(6); while (db.prepare('SELECT 1 FROM campanas WHERE codigo = ?').get(codigo));
-    const ahora = Date.now();
-    db.prepare(`INSERT INTO campanas (id, nombre, ambientacion, sinopsis, codigo, clave_hash, dueno_id, creada, actualizada)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, nombre, texto(b.ambientacion, 120), texto(b.sinopsis, 1200), codigo, hashClave(clave), u.id, ahora, ahora);
-    db.prepare("INSERT INTO membresias (campana_id, usuario_id, rol, unido) VALUES (?, ?, 'dm', ?)").run(id, u.id, ahora);
-    const c = db.prepare('SELECT * FROM campanas WHERE id = ?').get(id);
+    const c = crearCampana(u.id, { nombre, ambientacion: texto(b.ambientacion, 120), sinopsis: texto(b.sinopsis, 1200), clave });
     return json(res, 201, { campana: resumenCampana(c, 'dm') });
   }
 
@@ -311,6 +387,82 @@ async function api(req, res, ruta) {
     const ya = membresia(c.id, u.id);
     if (!ya) db.prepare("INSERT INTO membresias (campana_id, usuario_id, rol, unido) VALUES (?, ?, 'jugador', ?)").run(c.id, u.id, Date.now());
     return json(res, ya ? 200 : 201, { campana: resumenCampana(c, ya ? ya.rol : 'jugador') });
+  }
+
+  /* ---- Contenido de la campaña ---- */
+  const md = /^campanas\/([\w-]{4,20})\/(datos|importar|img\/([\w.-]{1,80}))$/.exec(ruta);
+  if (md) {
+    const u = exigirUsuario(req);
+    const c = db.prepare('SELECT * FROM campanas WHERE id = ?').get(md[1]);
+    const mem = c && membresia(c.id, u.id);
+    if (!c || !mem) fallo(404, 'Esa campaña no existe o no formas parte de ella.');
+    const esDm = mem.rol === 'dm';
+
+    if (md[3] && m === 'GET') return servirImagen(res, c.id, md[3]);
+    if (md[2] === 'datos' && m === 'GET') {
+      const d = leerDatos(c);
+      return json(res, 200, { rev: c.rev, rol: mem.rol, datos: esDm ? d : vistaJugador(d) });
+    }
+    if (!esDm) fallo(403, 'Solo el DM puede cambiar la campaña.');
+    if (md[2] === 'datos' && m === 'PUT') {
+      const b = await leerCuerpo(req, 12 * 1024 * 1024);
+      if (Number(b.rev) !== c.rev) fallo(409, 'La campaña cambió en otra ventana. Recarga para ver la última versión.');
+      const d = validarDatos(b.datos);
+      const rev = c.rev + 1;
+      db.prepare('UPDATE campanas SET datos = ?, rev = ?, actualizada = ? WHERE id = ?').run(JSON.stringify(d), rev, Date.now(), c.id);
+      return json(res, 200, { rev });
+    }
+    if (md[2] === 'importar' && m === 'POST') {
+      const b = await leerCuerpo(req, 120 * 1024 * 1024);
+      if (!b || b.formato !== 'the-field-forge' || !b.estado) fallo(400, 'Ese archivo no es una copia de The Field Forge.');
+      // Las imágenes de la copia (mapas, retratos) pasan a archivos del servidor.
+      const mapa = {};
+      for (const [ref, url] of Object.entries(b.imagenes || {})) {
+        const mt = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/s.exec(String(url));
+        if (!mt) continue;
+        const nombre = crypto.randomBytes(8).toString('hex') + '.' + mt[1].replace('jpeg', 'jpg');
+        fs.mkdirSync(path.join(IMG_DIR, c.id), { recursive: true });
+        fs.writeFileSync(path.join(IMG_DIR, c.id, nombre), Buffer.from(mt[2], 'base64'));
+        mapa[ref] = `api/campanas/${c.id}/img/${nombre}`;
+      }
+      const txt = JSON.stringify(b.estado, (k, v) => (typeof v === 'string' && mapa[v]) ? mapa[v] : v);
+      const d = validarDatos(JSON.parse(txt));
+      const rev = c.rev + 1;
+      db.prepare('UPDATE campanas SET datos = ?, rev = ?, actualizada = ?, sinopsis = CASE WHEN sinopsis = \'\' THEN ? ELSE sinopsis END WHERE id = ?')
+        .run(JSON.stringify(d), rev, Date.now(), texto(d.campana && d.campana.sinopsis, 1200), c.id);
+      return json(res, 200, { rev, imagenes: Object.keys(mapa).length });
+    }
+    fallo(405, 'Método no permitido.');
+  }
+
+  /* ---- Personajes del usuario (creador de personajes) ---- */
+  if (ruta === 'personajes' && m === 'GET') {
+    const u = exigirUsuario(req);
+    const filas = db.prepare('SELECT id, datos, actualizado FROM personajes WHERE usuario_id = ? ORDER BY actualizado DESC').all(u.id);
+    return json(res, 200, { personajes: filas.map(f => ({ ...JSON.parse(f.datos), id: f.id, actualizado: f.actualizado })) });
+  }
+  if (ruta === 'personajes' && m === 'POST') {
+    const u = exigirUsuario(req);
+    if (db.prepare('SELECT COUNT(*) n FROM personajes WHERE usuario_id = ?').get(u.id).n >= 30) fallo(403, 'Has llegado al máximo de 30 personajes.');
+    const b = await leerCuerpo(req, 2 * 1024 * 1024);
+    const f = validarFicha(b.personaje);
+    const id = 'pj_' + crypto.randomBytes(6).toString('base64url');
+    db.prepare('INSERT INTO personajes (id, usuario_id, datos, creado, actualizado) VALUES (?, ?, ?, ?, ?)').run(id, u.id, JSON.stringify(f), Date.now(), Date.now());
+    return json(res, 201, { personaje: { ...f, id } });
+  }
+  const mp = /^personajes\/(pj_[\w-]{4,20})$/.exec(ruta);
+  if (mp) {
+    const u = exigirUsuario(req);
+    const fila = db.prepare('SELECT * FROM personajes WHERE id = ? AND usuario_id = ?').get(mp[1], u.id);
+    if (!fila) fallo(404, 'Ese personaje no existe.');
+    if (m === 'GET') return json(res, 200, { personaje: { ...JSON.parse(fila.datos), id: fila.id } });
+    if (m === 'PUT') {
+      const b = await leerCuerpo(req, 2 * 1024 * 1024);
+      const f = validarFicha(b.personaje);
+      db.prepare('UPDATE personajes SET datos = ?, actualizado = ? WHERE id = ?').run(JSON.stringify(f), Date.now(), fila.id);
+      return json(res, 200, { personaje: { ...f, id: fila.id } });
+    }
+    if (m === 'DELETE') { db.prepare('DELETE FROM personajes WHERE id = ?').run(fila.id); return json(res, 200, { ok: true }); }
   }
 
   const mc = /^campanas\/([\w-]{4,20})$/.exec(ruta);
