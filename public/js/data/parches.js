@@ -136,6 +136,92 @@
           c.sinopsis = 'Tres viajeros llegan a Puerto Nyanzaru buscando un dios, una tumba y un tesoro. Una deuda con Cira los llevó al coliseo, a cazar un pterodáctilo y a ganar la carrera de dinosaurios. Pero algo bajó del cielo y se llevó un alma.';
         }
       }
+    },
+    {
+      id: 'sesion-3',
+      aplicar(st) {
+        const S = TFF.store;
+        const find = id => st.personajes.find(f => f.id === id);
+        const nuevo = (id, base) => {
+          if (find(id)) return;
+          st.personajes.push(Object.assign(TFF.npc.fichaVacia(base.tipo || 'npc'), base, { id }));
+        };
+
+        // Claudio acompaña a Mirrir; murió y volvió. Los enemigos de la misión.
+        const claudio = find('npc-claudio');
+        if (claudio) Object.assign(claudio, { actitud: 'Amistoso', estado: 'activo', enc: true });
+        nuevo('ene-contramaestre', {
+          tipo: 'enemigo', nombre: 'El contramaestre', rol: 'Jefe del campamento de no muertos', actitud: 'Hostil', estado: 'derrotado',
+          pers: { rasgo: 'Dejó varias veces al grupo a 1 PG.', gancho: 'Lo mataron, pero los no muertos del campamento volvían a levantarse.' }
+        });
+        nuevo('ene-enano-templo', {
+          tipo: 'enemigo', nombre: 'Enano del templo', raza: 'Enano', rol: 'Guardia sospechoso del templo', actitud: 'Hostil', estado: 'muerto',
+          pers: { gancho: 'Intentó noquear a Mirrir por la espalda. Claudio lo mató de un solo golpe.' }
+        });
+        nuevo('ene-humano-templo', {
+          tipo: 'enemigo', nombre: 'Humano del templo', raza: 'Humano', rol: 'Guardia sospechoso del templo', actitud: 'Hostil',
+          pers: { gancho: 'Acompañaba al enano cuando intentaron noquear a Mirrir.' }
+        });
+        nuevo('ene-tiefling-picaro', {
+          tipo: 'enemigo', nombre: 'El líder tiefling', raza: 'Tiefling', clase: 'Pícaro', rol: 'Líder de los guardias del templo', actitud: 'Hostil', estado: 'derrotado',
+          pers: { rasgo: 'Pícaro muy poderoso. La pelea más larga de la sesión.', gancho: 'Dejó inconsciente a Mirrir y mató a Claudio antes de caer.' }
+        });
+        nuevo('npc-entidad-mayor', {
+          nombre: 'La entidad mayor', rol: 'Ocupó el cuerpo de Claudio', actitud: 'Indiferente',
+          pers: { rasgo: 'Habló por la boca de Claudio muerto y les urgió a subir por el objeto.' }
+        });
+        nuevo('npc-espiritus-elficos', {
+          nombre: 'Espíritus celestiales élficos', rol: 'Espíritus de las montañas, los mares, el bosque y el infierno', actitud: 'Indiferente',
+          pers: { gancho: 'Revivieron a Claudio a cambio de que Mirrir no vuelva a pisar un templo.' }
+        });
+
+        const t0 = Date.now();
+        const ev = (i, tipo, lugar, titulo, texto, cita, enlaces = [], extra = {}) =>
+          Object.assign({ id: S.uid('ev'), sesion: 3, tipo, lugar, titulo, texto, cita, enlaces, img: '', oculto: false, t: t0 + i }, extra);
+        st.cronica.push(
+          ev(1, 'decision', 'Puerto Nyanzaru', 'Dos misiones',
+            'El grupo se separa. Mirrir y Claudio parten a recuperar un objeto mágico de un templo para salvar el alma de Alan. Lucio, Carlos y Krouds salen a otra misión.',
+            '', ['pj-mirrir', 'npc-claudio', 'npc-lucio', 'pj-carlos', 'pj-krouds', 'npc-alan']),
+          ev(2, 'escena', 'La costa', 'Sin barco',
+            'Iban a ir en barco, pero Mirrir lo rompe. Les toca seguir a pie. Por el camino, un no muerto les da algo de guerra, nada grave.',
+            '', ['pj-mirrir', 'npc-claudio']),
+          ev(3, 'combate', 'El campamento del risco', 'El contramaestre',
+            'Un campamento grande en el cruce entre un risco, un río y el paso que necesitan. Se enfrentan a tres no muertos y a un contramaestre. Varias veces quedan a 1 PG. Matan a un no muerto y al contramaestre, pero los caídos vuelven a levantarse.',
+            '', ['pj-mirrir', 'npc-claudio', 'ene-contramaestre']),
+          ev(4, 'escena', 'Bordeando la costa', 'El barco del enemigo',
+            'Huyen en el barco de los no muertos, siguiendo la costa hacia el templo. Un enemigo alcanza a subir y deja inconsciente a Claudio; Mirrir lo salva y se recupera antes de llegar.',
+            '', ['pj-mirrir', 'npc-claudio']),
+          ev(5, 'combate', 'El templo', 'Una bienvenida sospechosa',
+            'En el templo hay un enano y un humano. Mirrir se acerca; en cuanto les da la espalda, intentan noquearlo. Se libera y empieza la pelea. Claudio mata al enano de un solo golpe.',
+            '', ['pj-mirrir', 'npc-claudio', 'ene-enano-templo', 'ene-humano-templo']),
+          ev(6, 'combate', 'El templo', 'El líder tiefling',
+            'Baja su líder, un tiefling pícaro con mucho poder. La pelea es larga: Mirrir cae inconsciente y Claudio aguanta solo hasta que se levanta. Juntos lo vencen, pero Claudio muere en la batalla.',
+            '', ['pj-mirrir', 'npc-claudio', 'ene-tiefling-picaro']),
+          ev(7, 'descubrimiento', 'El templo', 'Algo en el cuerpo de Claudio',
+            'El alma de Claudio sale de su cuerpo y una entidad mayor ocupa su lugar. Les dice que suban rápido a buscar el objeto si quieren salvar a su compañero.',
+            'Subid. Rápido.', ['npc-claudio', 'npc-entidad-mayor']),
+          ev(8, 'decision', 'La cima del templo', 'El precio de Mirrir',
+            'Mirrir pone el objeto en la ruina, lo riega con sangre dorada de los elfos e invoca a los espíritus celestiales élficos de las montañas, los mares, el bosque y el infierno. Lo condenan: nunca más podrá pisar un templo. A cambio, Claudio vuelve a la vida. Mirrir acepta.',
+            'Nunca más un templo.', ['pj-mirrir', 'npc-claudio', 'npc-espiritus-elficos']),
+          ev(9, 'escena', 'El templo', 'Escombros',
+            'El templo se viene abajo sobre ellos. Corren entre los escombros y salen. Fin de la sesión.',
+            '', ['pj-mirrir', 'npc-claudio']),
+          ev(10, 'descubrimiento', 'Solo DM', 'Un revivido más',
+            'Claudio es ahora un revivido: encaja con la maldición que roba las almas de los muertos y de los revividos. La entidad que ocupó su cuerpo pudo notarlo.',
+            '', ['npc-claudio', 'npc-entidad-mayor'], { oculto: true })
+        );
+
+        [
+          ['h12', 'Mirrir no puede volver a pisar un templo. ¿Qué pasa si lo hace?'],
+          ['h13', 'La entidad mayor que habló por el cuerpo de Claudio.'],
+          ['h14', 'El objeto del templo: ¿basta para devolver el alma de Alan?'],
+          ['h15', 'La misión de Lucio, Carlos y Krouds (pendiente de registrar).']
+        ].forEach(([id, texto]) => { if (!st.hilos.some(h => h.id === id)) st.hilos.push({ id, texto, estado: 'abierto' }); });
+
+        const c = st.campana;
+        c.sesiones = Object.assign({}, c.sesiones, { 3: 'El templo y el precio de Mirrir', 4: 'Siguiente sesión' });
+        c.sesionActual = Math.max(c.sesionActual || 1, 4);
+      }
     }
   ];
 
