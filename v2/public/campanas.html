@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mis campañas · The Field Forge</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="img/favicon.ico">
+  <link rel="stylesheet" href="css/forja.css">
+  <script src="js/comun.js"></script>
+</head>
+<body>
+  <header class="barra">
+    <nav class="envoltura barra__in" aria-label="Principal">
+      <a class="barra__marca" href="campanas.html" aria-label="Mis campañas"><span class="logo"></span></a>
+      <div class="barra__acciones">
+        <button class="boton boton--fantasma boton--icono" type="button" data-icono-tema></button>
+        <div data-menu-usuario></div>
+      </div>
+    </nav>
+  </header>
+
+  <main class="envoltura">
+    <div class="cabecera">
+      <div>
+        <h1>Mis campañas</h1>
+        <p data-saludo></p>
+      </div>
+      <div class="cabecera__acciones" data-acciones hidden>
+        <button class="boton boton--secundario" type="button" data-abrir="unirse"></button>
+        <button class="boton boton--primario" type="button" data-abrir="nueva"></button>
+      </div>
+    </div>
+    <div class="rejilla" data-lista aria-live="polite"></div>
+  </main>
+
+  <dialog class="hoja" id="nueva" aria-labelledby="nueva-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab">
+        <div><h2 id="nueva-titulo">Nueva campaña</h2><p class="suave">Serás su DM. Podrás cambiar todo después.</p></div>
+        <button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button>
+      </div>
+      <div class="campo"><label for="n-nombre">Nombre</label><input class="entrada" id="n-nombre" name="nombre" required minlength="2" maxlength="80" placeholder="La Tumba de la Aniquilación"></div>
+      <div class="campo"><label for="n-amb">Ambientación <span class="suave">(opcional)</span></label><input class="entrada" id="n-amb" name="ambientacion" maxlength="120" placeholder="Chult, selva y ruinas · Reinos Olvidados"></div>
+      <div class="campo"><label for="n-sin">De qué va <span class="suave">(opcional)</span></label><textarea class="entrada" id="n-sin" name="sinopsis" maxlength="1200" placeholder="Una línea que despierte las ganas de jugar."></textarea></div>
+      <div class="campo"><label for="n-clave">Contraseña para unirse</label><input class="entrada" id="n-clave" name="clave" type="text" autocomplete="off" required minlength="4" maxlength="100"><span class="ayuda">La compartirás con tus jugadores junto al código.</span></div>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Crear campaña</button></div>
+    </form>
+  </dialog>
+
+  <dialog class="hoja" id="unirse" aria-labelledby="unirse-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab">
+        <div><h2 id="unirse-titulo">Unirme a una campaña</h2><p class="suave">Pide el código y la contraseña a tu DM.</p></div>
+        <button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button>
+      </div>
+      <div class="campo"><label for="u-codigo">Código</label><input class="entrada" id="u-codigo" name="codigo" required minlength="6" maxlength="12" autocapitalize="characters" autocomplete="off" placeholder="ABC234"></div>
+      <div class="campo"><label for="u-clave">Contraseña</label><input class="entrada" id="u-clave" name="clave" type="password" required autocomplete="off"></div>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Unirme</button></div>
+    </form>
+  </dialog>
+
+  <script src="js/campanas.js"></script>
+</body>
+</html>

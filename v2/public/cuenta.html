@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar · The Field Forge</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="img/favicon.ico">
+  <link rel="stylesheet" href="css/forja.css">
+  <script src="js/comun.js"></script>
+</head>
+<body class="cuenta">
+  <header class="barra">
+    <nav class="envoltura barra__in" aria-label="Principal">
+      <a class="barra__marca" href="./" aria-label="The Field Forge, inicio"><span class="logo"></span></a>
+      <div class="barra__acciones"><button class="boton boton--fantasma boton--icono" type="button" data-icono-tema></button></div>
+    </nav>
+  </header>
+
+  <main class="cuenta__centro">
+    <section class="tarjeta" aria-labelledby="titulo">
+      <h1 class="tarjeta__titulo" id="titulo">Bienvenido a la <span class="gotica">Forja</span></h1>
+
+      <div class="pestanas" role="tablist" aria-label="Elige una opción">
+        <button type="button" role="tab" id="tab-entrar" aria-controls="form-entrar" aria-selected="true">Entrar</button>
+        <button type="button" role="tab" id="tab-registro" aria-controls="form-registro" aria-selected="false">Crear cuenta</button>
+      </div>
+
+      <form class="form" id="form-entrar" role="tabpanel" aria-labelledby="tab-entrar" novalidate>
+        <div class="campo">
+          <label for="e-usuario">Usuario o correo</label>
+          <input class="entrada" id="e-usuario" name="usuario" autocomplete="username" required>
+        </div>
+        <div class="campo">
+          <label for="e-clave">Contraseña</label>
+          <input class="entrada" id="e-clave" name="clave" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="captcha" data-estado="espera" role="status" aria-live="polite">
+          <span class="captcha__marca"></span>
+          <span class="captcha__texto">Comprobaremos que eres humano al enviar.</span>
+        </div>
+        <p class="aviso" role="alert"></p>
+        <button class="boton boton--primario boton--grande" type="submit">Entrar</button>
+      </form>
+
+      <form class="form" id="form-registro" role="tabpanel" aria-labelledby="tab-registro" hidden novalidate>
+        <div class="campo">
+          <label for="r-invitacion">Código de invitación</label>
+          <input class="entrada" id="r-invitacion" name="invitacion" autocomplete="off" autocapitalize="characters" required placeholder="FORJA-XXXX">
+          <span class="ayuda">La beta es privada: pide el código a quien te invitó.</span>
+        </div>
+        <div class="campo">
+          <label for="r-usuario">Usuario</label>
+          <input class="entrada" id="r-usuario" name="usuario" autocomplete="username" required minlength="3" maxlength="32">
+          <span class="ayuda">Así te verá tu grupo. Letras, números, puntos o guiones.</span>
+        </div>
+        <div class="campo">
+          <label for="r-correo">Correo</label>
+          <input class="entrada" id="r-correo" name="correo" type="email" autocomplete="email" required>
+        </div>
+        <div class="campo">
+          <label for="r-clave">Contraseña</label>
+          <input class="entrada" id="r-clave" name="clave" type="password" autocomplete="new-password" required minlength="8">
+          <span class="ayuda">Mínimo 8 caracteres.</span>
+        </div>
+        <div class="captcha" data-estado="espera" role="status" aria-live="polite">
+          <span class="captcha__marca"></span>
+          <span class="captcha__texto">Comprobaremos que eres humano al enviar.</span>
+        </div>
+        <p class="aviso" role="alert"></p>
+        <button class="boton boton--primario boton--grande" type="submit">Crear cuenta</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="js/cuenta.js"></script>
+</body>
+</html>

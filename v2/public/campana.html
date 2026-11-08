@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campaña · The Field Forge</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="img/favicon.ico">
+  <link rel="stylesheet" href="css/forja.css">
+  <script src="js/comun.js"></script>
+</head>
+<body>
+  <header class="barra">
+    <nav class="envoltura barra__in" aria-label="Principal">
+      <a class="barra__marca" href="campanas.html" aria-label="Mis campañas"><span class="logo"></span></a>
+      <div class="barra__acciones">
+        <button class="boton boton--fantasma boton--icono" type="button" data-icono-tema></button>
+        <div data-menu-usuario></div>
+      </div>
+    </nav>
+  </header>
+
+  <main class="envoltura" data-contenido aria-live="polite"></main>
+
+  <dialog class="hoja" id="editar" aria-labelledby="editar-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab">
+        <h2 id="editar-titulo">Editar campaña</h2>
+        <button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button>
+      </div>
+      <div class="campo"><label for="ed-nombre">Nombre</label><input class="entrada" id="ed-nombre" name="nombre" required minlength="2" maxlength="80"></div>
+      <div class="campo"><label for="ed-amb">Ambientación</label><input class="entrada" id="ed-amb" name="ambientacion" maxlength="120"></div>
+      <div class="campo"><label for="ed-sin">De qué va</label><textarea class="entrada" id="ed-sin" name="sinopsis" maxlength="1200"></textarea></div>
+      <div class="campo"><label for="ed-clave">Nueva contraseña para unirse</label><input class="entrada" id="ed-clave" name="clave" type="text" autocomplete="off" minlength="4" maxlength="100"><span class="ayuda">Déjala vacía para mantener la actual.</span></div>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Guardar</button></div>
+    </form>
+  </dialog>
+
+  <script src="js/campana.js"></script>
+</body>
+</html>
