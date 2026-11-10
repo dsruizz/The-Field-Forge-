@@ -63,7 +63,8 @@
       [resumen.pjs.length, resumen.pjs.length === 1 ? 'personaje jugador' : 'personajes jugadores'],
       ult ? [ROMANO(ult.sesion), 'último: ' + ult.titulo] : null
     ].filter(Boolean).map(([b, s]) => `<div class="cifra"><b>${e(b)}</b><span>${e(s)}</span></div>`).join('');
-    $('[data-acciones-portada]').innerHTML = `<span class="chip ${esDm ? 'chip--dm' : ''}">${esDm ? 'Eres el DM' : 'Jugador · solo lectura'}</span>`;
+    $('[data-acciones-portada]').innerHTML = `<span class="chip ${esDm ? 'chip--dm' : ''}">${esDm ? 'Eres el DM' : 'Jugador · solo lectura'}</span>${esDm ? `<a class="boton boton--primario" href="mesa.html?id=${encodeURIComponent(id)}">${F.icono('mesa')}Mesa y proyección</a>` : ''}`;
+    if (!pintarPortada.brasas) pintarPortada.brasas = F.particulas($('[data-chispas]'), 'brasas', { color: 'verde', origen: 'ancho', densidad: .45 });
   }
 
   /* ---------- Pestañas ---------- */
@@ -325,8 +326,9 @@
         ${esDm ? `
         <section class="panel">
           <h2>Mesa y proyector</h2>
-          <p class="suave">El mapa, el proyector y la sala de móviles siguen en la herramienta de mesa mientras los pasamos a esta versión.</p>
-          <a class="boton boton--secundario" href="/clasica/" target="_blank" rel="noopener">${F.icono('mesa')}Abrir herramienta de mesa</a>
+          <p class="suave">Prepara escenas sobre el mapa, presenta jefes y lugares y muestra los resultados a toda la mesa.</p>
+          <a class="boton boton--primario" href="mesa.html?id=${encodeURIComponent(id)}">${F.icono('mesa')}Abrir la mesa</a>
+          <p class="suave">La sala para móviles sigue en la <a href="/clasica/" target="_blank" rel="noopener">herramienta clásica</a> hasta que la pasemos aquí.</p>
         </section>
         <section class="panel">
           <h2>Campaña</h2>

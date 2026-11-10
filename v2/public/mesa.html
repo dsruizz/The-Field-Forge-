@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mesa · The Field Forge</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="img/favicon.ico">
+  <link rel="stylesheet" href="css/forja.css">
+  <link rel="stylesheet" href="css/mesa.css">
+  <script src="js/comun.js"></script>
+  <script src="vendor/gsap/gsap.min.js"></script>
+  <script src="js/reglas/dados.js"></script>
+  <script src="js/reglas/reglas5e.js"></script>
+  <script src="js/ficha.js"></script>
+  <script src="js/particulas.js"></script>
+  <script src="js/tablero.js"></script>
+</head>
+<body class="pag-mesa">
+  <header class="mbar">
+    <a class="boton boton--fantasma boton--icono" href="campanas.html" data-volver aria-label="Volver a la campaña" title="Volver a la campaña"></a>
+    <div class="menu mbar__escenas" data-escenas>
+      <button class="mbar__escena" type="button" aria-haspopup="true" aria-expanded="false" data-escena-boton><span data-escena-nombre>Escena</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="menu__lista" hidden data-escena-lista></div>
+    </div>
+    <div class="mbar__herr" role="toolbar" aria-label="Añadir a la escena" data-herramientas></div>
+    <div class="mbar__der">
+      <span class="mbar__estado suave" data-guardado aria-live="polite"></span>
+      <button class="herr" type="button" data-vivo aria-pressed="true" title="Si lo apagas, el proyector se queda como está mientras preparas"></button>
+      <button class="herr" type="button" data-telon aria-pressed="false" title="Pantalla en negro en el proyector"></button>
+      <button class="boton boton--primario boton--chico" type="button" data-proyector></button>
+      <button class="herr herr--icono" type="button" data-panel aria-pressed="true" aria-label="Mostrar u ocultar el panel" title="Mostrar u ocultar el panel"></button>
+    </div>
+  </header>
+
+  <div class="mesa" data-mesa>
+    <main class="mesa__escenario">
+      <div class="mesa__caja"><div data-tablero></div></div>
+      <p class="mesa__pista suave" data-pista></p>
+    </main>
+    <aside class="dock" data-dock aria-label="Panel">
+      <div class="segmento dock__tabs" role="group" aria-label="Sección del panel" data-dock-tabs></div>
+      <div class="dock__cuerpo" data-dock-cuerpo></div>
+    </aside>
+  </div>
+
+  <input type="file" accept="image/*" hidden data-archivo>
+
+  <dialog class="hoja hoja--ancha" id="ver-ficha" aria-label="Ficha">
+    <div class="hoja__in">
+      <div class="hoja__cab"><span></span><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div data-cuerpo></div>
+    </div>
+  </dialog>
+
+  <dialog class="hoja" id="present-dlg" aria-labelledby="pd-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab"><h2 id="pd-titulo">Presentación</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div class="campo"><span class="etq">Plantilla</span><div class="segmento" role="group" aria-label="Plantilla" data-plantillas></div></div>
+      <div class="campo"><label for="pd-desde">Rellenar desde un personaje <span class="suave">(opcional)</span></label><select class="entrada" id="pd-desde" name="desde"></select></div>
+      <div class="retrato-carga">
+        <div class="ficha__retrato" data-pd-img></div>
+        <div class="campo"><label for="pd-img">Imagen</label><input class="entrada" id="pd-img" type="file" accept="image/*"><span class="ayuda">Un PNG sin fondo luce mejor en las plantillas de jefe.</span></div>
+      </div>
+      <div class="campo"><label for="pd-tit">Título</label><input class="entrada" id="pd-tit" name="titulo" required maxlength="80" placeholder="El dragón de las cuevas del más allá"></div>
+      <div class="campo"><label for="pd-sub">Antetítulo <span class="suave">(opcional)</span></label><input class="entrada" id="pd-sub" name="sub" maxlength="60" placeholder="Jefe · Guardián de la tumba"></div>
+      <div class="campo"><label for="pd-txt">Descripción</label><textarea class="entrada" id="pd-txt" name="texto" maxlength="400" placeholder="Busco, cazo almas y exploradores perdidos en mis aposentos."></textarea></div>
+      <div class="fila">
+        <div class="campo"><label for="pd-amb">Ambiente</label><select class="entrada" id="pd-amb" name="ambiente"></select></div>
+        <div class="campo"><label for="pd-col">Color del ambiente</label><select class="entrada" id="pd-col" name="color"><option value="fuego">Fuego</option><option value="verde">Verde</option><option value="azul">Azul</option><option value="rojo">Rojo</option><option value="papel">Gris</option></select></div>
+      </div>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Guardar</button></div>
+    </form>
+  </dialog>
+
+  <script src="js/mesa.js"></script>
+</body>
+</html>

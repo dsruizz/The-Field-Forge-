@@ -131,7 +131,14 @@ if (orden === 'invitacion') {
 }
 if (orden === 'importar-tumba') {
   const u = a1 && db.prepare('SELECT * FROM usuarios WHERE correo = ? OR usuario = ?').get(a1.toLowerCase(), a1);
-  if (!u) { console.log('Uso: node server.js importar-tumba CORREO_O_USUARIO (la cuenta debe existir)'); process.exit(1); }
+  if (!u) {
+    const cuentas = db.prepare('SELECT usuario, correo FROM usuarios ORDER BY id').all();
+    console.log(a1 ? `No hay ninguna cuenta con "${a1}".` : 'Uso: node server.js importar-tumba CORREO_O_USUARIO');
+    console.log(cuentas.length ? 'Cuentas registradas:\n' + cuentas.map(c => `  ${c.usuario} · ${c.correo}`).join('\n') : 'Todavía no hay cuentas registradas.');
+    process.exit(1);
+  }
+  const ya = db.prepare("SELECT codigo FROM campanas WHERE dueno_id = ? AND nombre = 'La Tumba de la Aniquilación'").get(u.id);
+  if (ya && a2 !== '--otra') { console.log(`${u.usuario} ya tiene La Tumba de la Aniquilación (código ${ya.codigo}). Si olvidaste la contraseña, cámbiala en la web: Grupo y ajustes → Editar campaña.`); process.exit(0); }
   const datos = fs.readFileSync(path.join(__dirname, 'semillas', 'tumba.json'), 'utf8');
   const clave = codigoLegible(6).toLowerCase();
   const c = crearCampana(u.id, { nombre: 'La Tumba de la Aniquilación', ambientacion: 'Chult · Reinos Olvidados', sinopsis: JSON.parse(datos).campana.sinopsis, clave, datos });
@@ -239,7 +246,16 @@ function abrirSesion(req, usuarioId) {
 }
 
 /* ---------- Campañas ---------- */
-function leerDatos(c) { try { return JSON.parse(c.datos || '{}'); } catch { return {}; } }
+// Las campañas creadas antes de que existiera el contenido guardaban '{}': siempre se devuelve la forma completa.
+function leerDatos(c) {
+  let d = {};
+  try { d = JSON.parse(c.datos || '{}') || {}; } catch { /* datos corruptos: se parte de cero */ }
+  const lista = k => Array.isArray(d[k]) ? d[k] : [];
+  const camp = (d.campana && typeof d.campana === 'object') ? d.campana : {};
+  return { ...d, version: d.version || 1,
+    campana: { ...camp, sesionActual: camp.sesionActual || 1, sesiones: (camp.sesiones && typeof camp.sesiones === 'object') ? camp.sesiones : { 1: 'Sesión 1' } },
+    cronica: lista('cronica'), personajes: lista('personajes'), hilos: lista('hilos'), mapas: lista('mapas') };
+}
 function resumenCampana(c, rol) {
   const jugadores = db.prepare("SELECT COUNT(*) n FROM membresias WHERE campana_id = ? AND rol = 'jugador'").get(c.id).n;
   const dm = db.prepare('SELECT usuario FROM usuarios WHERE id = ?').get(c.dueno_id);
@@ -313,6 +329,14 @@ async function api(req, res, ruta) {
     if (!String(req.headers['content-type'] || '').startsWith('application/json')) fallo(415, 'Se esperaba JSON.');
     const origen = req.headers.origin;
     if (origen && new URL(origen).host !== req.headers.host) fallo(403, 'Origen no permitido.');
+  }
+
+  // Errores del navegador: quedan en el registro del servidor para poder diagnosticar sin abrir la consola.
+  if (ruta === 'diag' && m === 'POST') {
+    if (limitar('diag:' + ip, 20)) return json(res, 200, { ok: true });
+    const b = await leerCuerpo(req, 8 * 1024);
+    console.log('[navegador]', JSON.stringify({ pagina: texto(b.pagina, 200), error: texto(b.error, 600), donde: texto(b.donde, 200), ua: texto(req.headers['user-agent'], 160) }));
+    return json(res, 200, { ok: true });
   }
 
   if (ruta === 'captcha' && m === 'GET') return json(res, 200, nuevoCaptcha());
@@ -390,7 +414,7 @@ async function api(req, res, ruta) {
   }
 
   /* ---- Contenido de la campaña ---- */
-  const md = /^campanas\/([\w-]{4,20})\/(datos|importar|img\/([\w.-]{1,80}))$/.exec(ruta);
+  const md = /^campanas\/([\w-]{4,20})\/(datos|importar|img|img\/([\w.-]{1,80}))$/.exec(ruta);
   if (md) {
     const u = exigirUsuario(req);
     const c = db.prepare('SELECT * FROM campanas WHERE id = ?').get(md[1]);
@@ -411,6 +435,15 @@ async function api(req, res, ruta) {
       const rev = c.rev + 1;
       db.prepare('UPDATE campanas SET datos = ?, rev = ?, actualizada = ? WHERE id = ?').run(JSON.stringify(d), rev, Date.now(), c.id);
       return json(res, 200, { rev });
+    }
+    if (md[2] === 'img' && m === 'POST') {
+      const b = await leerCuerpo(req, 9 * 1024 * 1024);
+      const mt = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(b.img || ''));
+      if (!mt) fallo(400, 'La imagen no es válida. Usa PNG, JPG o WebP.');
+      const nombre = crypto.randomBytes(8).toString('hex') + '.' + mt[1].replace('jpeg', 'jpg');
+      fs.mkdirSync(path.join(IMG_DIR, c.id), { recursive: true });
+      fs.writeFileSync(path.join(IMG_DIR, c.id, nombre), Buffer.from(mt[2], 'base64'));
+      return json(res, 201, { url: `api/campanas/${c.id}/img/${nombre}` });
     }
     if (md[2] === 'importar' && m === 'POST') {
       const b = await leerCuerpo(req, 120 * 1024 * 1024);
@@ -510,7 +543,7 @@ const TIPOS = {
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
   '.woff2': 'font/woff2', '.json': 'application/json'
 };
-function estatico(req, res, ruta) {
+function estatico(req, res, ruta, versionado) {
   let rel = decodeURIComponent(ruta);
   if (rel === '' || rel.endsWith('/')) rel += 'index.html';
   const archivo = path.normalize(path.join(PUBLIC_DIR, rel));
@@ -521,9 +554,15 @@ function estatico(req, res, ruta) {
       return fs.createReadStream(path.join(PUBLIC_DIR, '404.html')).on('error', () => res.end('No encontrado')).pipe(res);
     }
     const ext = path.extname(archivo);
+    if (ext === '.html') {
+      res.writeHead(200, { 'Content-Type': TIPOS[ext], 'Cache-Control': 'no-cache' });
+      return fs.readFile(archivo, 'utf8', (e2, html) => res.end(e2 ? '' : html.replace(/(src|href)="((?:js|css|vendor)\/[^"?]+)"/g, (todo, attr, rec) => {
+        try { return `${attr}="${rec}?v=${Math.round(fs.statSync(path.join(PUBLIC_DIR, rec)).mtimeMs / 1000).toString(36)}"`; } catch { return todo; }
+      })));
+    }
     res.writeHead(200, {
       'Content-Type': TIPOS[ext] || 'application/octet-stream',
-      'Cache-Control': ext === '.html' ? 'no-cache' : ext === '.woff2' ? 'public, max-age=31536000, immutable' : 'public, max-age=300'
+      'Cache-Control': ext === '.woff2' || versionado ? 'public, max-age=31536000, immutable' : 'public, max-age=300'
     });
     fs.createReadStream(archivo).pipe(res);
   });
@@ -546,7 +585,7 @@ http.createServer(async (req, res) => {
   try {
     if (p.startsWith('/api/')) return await api(req, res, p.slice(5).replace(/\/$/, ''));
     if (req.method !== 'GET' && req.method !== 'HEAD') fallo(405, 'Método no permitido.');
-    return estatico(req, res, p.slice(1));
+    return estatico(req, res, p.slice(1), url.searchParams.has("v"));
   } catch (e) {
     if (e instanceof ErrorApi) return json(res, e.estado, { error: e.message });
     console.error(e);

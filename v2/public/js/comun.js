@@ -33,7 +33,23 @@
     subir: '<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>',
     mesa: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
     dado: '<path d="M12 2 21 7v10l-9 5-9-5V7l9-5Z"/><path d="M12 22V12M21 7l-9 5-9-5"/>',
-    chispa: '<path d="M12 2v6M12 16v6M2 12h6M16 12h6M5 5l3.5 3.5M15.5 15.5 19 19M5 19l3.5-3.5M15.5 8.5 19 5"/>'
+    chispa: '<path d="M12 2v6M12 16v6M2 12h6M16 12h6M5 5l3.5 3.5M15.5 15.5 19 19M5 19l3.5-3.5M15.5 8.5 19 5"/>',
+    imagen: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4"/>',
+    texto: '<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',
+    area: '<circle cx="12" cy="12" r="8" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="1.5"/>',
+    fuego: '<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.6 1 2.4 2 2.9-.5-3 0-5.9 1-8.4Z"/>',
+    mapa: '<path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5L9 4ZM9 4v13.5M15 6.5V20"/>',
+    deshacer: '<path d="M8 7 4 11l4 4"/><path d="M4 11h10a5 5 0 0 1 0 10h-3"/>',
+    duplicar: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/>',
+    candado: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    arriba: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+    abajo: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+    proyectar: '<path d="M6 4l14 8-14 8V4Z"/>',
+    parar: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
+    grupo: '<circle cx="9" cy="9" r="3.2"/><path d="M3 19a6 6 0 0 1 12 0M16 6.2a3 3 0 0 1 0 5.6M17.5 14.2A5.5 5.5 0 0 1 21 19"/>',
+    aviso: '<path d="M4 10v4h3l6 4V6l-6 4H4ZM16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11"/>',
+    telon: '<path d="M3 4h18v3H3zM5 7v13M19 7v13M5 7c2 5 2 9 0 13M19 7c-2 5-2 9 0 13"/>',
+    panel: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>'
   };
   F.icono = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n] || ''}</svg>`;
   function pintarIconoTema(b) {
@@ -96,13 +112,23 @@
     };
   };
 
+  /* ---------- Errores: que nunca fallen en silencio ---------- */
+  let avisados = 0;
+  const informar = (error, donde) => {
+    if (avisados++ > 4) return;
+    F.toast && F.toast('Algo falló en esta página. Recárgala; si sigue, avísame con este texto: ' + String(error).slice(0, 120));
+    fetch('api/diag', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pagina: location.pathname + location.search, error: String(error), donde: donde || '' }) }).catch(() => {});
+  };
+  addEventListener('error', e => { if (e.message) informar(e.message, (e.filename || '').split('/').pop() + ':' + e.lineno); });
+  addEventListener('unhandledrejection', e => informar((e.reason && e.reason.message) || e.reason, 'promesa'));
+
   /* ---------- Avisos breves ---------- */
   let tt;
   F.toast = texto => {
     let t = document.querySelector('.toast');
     if (!t) { t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); document.body.append(t); }
     t.textContent = texto; t.classList.add('is-on');
-    clearTimeout(tt); tt = setTimeout(() => t.classList.remove('is-on'), 2600);
+    clearTimeout(tt); tt = setTimeout(() => t.classList.remove('is-on'), Math.max(2600, texto.length * 55));
   };
 
   /* ---------- Sesión ---------- */
@@ -133,6 +159,7 @@
           <div class="menu__quien"><b>${F.esc(usuario.usuario)}</b><br>${F.esc(usuario.correo)}</div>
           <a href="campanas.html">Mis campañas</a>
           <a href="personajes.html">Mis personajes</a>
+          <button type="button" data-efectos></button>
           <button type="button" data-salir>Cerrar sesión</button>
         </div>
       </div>`;
@@ -142,6 +169,10 @@
     document.addEventListener('click', e => { if (!hueco.contains(e.target)) cerrar(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
     hueco.querySelector('[data-salir]').addEventListener('click', F.salir);
+    const ef = hueco.querySelector('[data-efectos]');
+    const pintarEf = () => { ef.textContent = 'Efectos y animación: ' + (F.efectos() === 'no' ? 'apagados' : 'encendidos'); };
+    pintarEf();
+    ef.addEventListener('click', () => { guardar('forja.efectos', F.efectos() === 'no' ? 'si' : 'no'); location.reload(); });
   };
 
   /* ---------- Formularios ---------- */
@@ -151,14 +182,18 @@
     else { boton.textContent = boton.dataset.texto || boton.textContent; boton.disabled = false; }
   };
   /* ---------- Movimiento: entrada escalonada con GSAP si está disponible ---------- */
-  F.reducido = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* Efectos: 'si' y 'no' son elección de la persona; sin elección se sigue al sistema, que si pide menos
+     movimiento recibe una versión en calma (menos partículas, más lentas, sin entradas ni parallax). */
+  F.efectos = () => leer('forja.efectos') || 'auto';
+  F.sinEfectos = () => F.efectos() === 'no';
+  F.reducido = () => F.efectos() === 'no' || (F.efectos() !== 'si' && matchMedia('(prefers-reduced-motion: reduce)').matches);
   F.entrar = (elementos, opciones = {}) => {
     const lista = typeof elementos === 'string' ? document.querySelectorAll(elementos) : elementos;
     if (!window.gsap || F.reducido() || !lista || !lista.length) return;
     window.gsap.from(lista, { y: 18, opacity: 0, duration: .55, ease: 'power3.out', stagger: .045, clearProps: 'transform,opacity', ...opciones });
   };
   /* Reduce una imagen en el navegador antes de guardarla (retratos). */
-  F.reducirImagen = (archivo, lado = 512) => new Promise((ok, ko) => {
+  const reducir = (archivo, lado, tipo) => new Promise((ok, ko) => {
     if (!archivo || !/^image\//.test(archivo.type)) return ko(new Error('Elige una imagen.'));
     const img = new Image();
     img.onload = () => {
@@ -167,11 +202,19 @@
       c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(img.src);
-      ok(c.toDataURL('image/jpeg', .85));
+      // Si el navegador no sabe escribir ese formato devuelve PNG: vale igual, solo pesa más.
+      ok({ url: c.toDataURL(tipo, .86), ancho: c.width, alto: c.height });
     };
     img.onerror = () => ko(new Error('No se pudo leer la imagen.'));
     img.src = URL.createObjectURL(archivo);
   });
+  F.reducirImagen = async (archivo, lado = 512) => (await reducir(archivo, lado, 'image/jpeg')).url;
+  /* Sube una imagen a la campaña y devuelve su dirección y proporción. */
+  F.subirImagen = async (campana, archivo, lado = 1600, tipo = 'image/webp') => {
+    const dato = await reducir(archivo, lado, tipo);
+    const r = await F.api('campanas/' + encodeURIComponent(campana) + '/img', { metodo: 'POST', datos: { img: dato.url } });
+    return { url: r.url, ancho: dato.ancho, alto: dato.alto };
+  };
   F.dialogo = dlg => {
     const cerrar = dlg.querySelector('[data-cerrar]');
     if (cerrar && !cerrar.innerHTML.trim()) cerrar.innerHTML = F.icono('cerrar');
