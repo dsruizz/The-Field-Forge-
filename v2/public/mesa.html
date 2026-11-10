@@ -12,39 +12,82 @@
   <script src="vendor/gsap/gsap.min.js"></script>
   <script src="js/reglas/dados.js"></script>
   <script src="js/reglas/reglas5e.js"></script>
+  <script src="js/reglas/npc.js"></script>
+  <script src="js/reglas/bestiario.js"></script>
+  <script src="js/reglas/encuentro.js"></script>
   <script src="js/ficha.js"></script>
   <script src="js/particulas.js"></script>
   <script src="js/tablero.js"></script>
+  <script src="js/vivo.js"></script>
 </head>
-<body class="pag-mesa">
-  <header class="mbar">
-    <a class="boton boton--fantasma boton--icono" href="campanas.html" data-volver aria-label="Volver a la campaña" title="Volver a la campaña"></a>
-    <div class="menu mbar__escenas" data-escenas>
-      <button class="mbar__escena" type="button" aria-haspopup="true" aria-expanded="false" data-escena-boton><span data-escena-nombre>Escena</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
-      <div class="menu__lista" hidden data-escena-lista></div>
-    </div>
-    <div class="mbar__herr" role="toolbar" aria-label="Añadir a la escena" data-herramientas></div>
-    <div class="mbar__der">
-      <span class="mbar__estado suave" data-guardado aria-live="polite"></span>
-      <button class="herr" type="button" data-vivo aria-pressed="true" title="Si lo apagas, el proyector se queda como está mientras preparas"></button>
-      <button class="herr" type="button" data-telon aria-pressed="false" title="Pantalla en negro en el proyector"></button>
-      <button class="boton boton--primario boton--chico" type="button" data-proyector></button>
-      <button class="herr herr--icono" type="button" data-panel aria-pressed="true" aria-label="Mostrar u ocultar el panel" title="Mostrar u ocultar el panel"></button>
-    </div>
+<body class="pag-consola">
+  <header class="barra">
+    <nav class="envoltura barra__in" aria-label="Principal">
+      <a class="barra__marca" href="campanas.html" aria-label="Mis campañas"><span class="logo"></span></a>
+      <div class="barra__nav" data-nav></div>
+      <div class="barra__acciones">
+        <button class="boton boton--fantasma boton--icono" type="button" data-icono-tema></button>
+        <div data-menu-usuario></div>
+      </div>
+    </nav>
   </header>
 
-  <div class="mesa" data-mesa>
-    <main class="mesa__escenario">
-      <div class="mesa__caja"><div data-tablero></div></div>
-      <p class="mesa__pista suave" data-pista></p>
-    </main>
-    <aside class="dock" data-dock aria-label="Panel">
-      <div class="segmento dock__tabs" role="group" aria-label="Sección del panel" data-dock-tabs></div>
-      <div class="dock__cuerpo" data-dock-cuerpo></div>
-    </aside>
-  </div>
+  <main class="envoltura consola">
+    <header class="consola__cab">
+      <div>
+        <a class="miga" href="campanas.html" data-miga>Campaña</a>
+        <h1>Mesa <span class="gotica">y proyección</span></h1>
+      </div>
+      <span class="suave consola__guardado" data-guardado aria-live="polite"></span>
+    </header>
 
-  <input type="file" accept="image/*" hidden data-archivo>
+    <div class="consola__cuerpo">
+      <aside class="consola__vivo" aria-label="Proyector">
+        <div class="vivo-caja"><div data-tablero></div></div>
+        <div class="vivo-modos" role="group" aria-label="Qué se proyecta" data-modos></div>
+        <div class="vivo-extra" data-modo-extra></div>
+        <button class="boton boton--primario" type="button" data-proyector></button>
+
+        <form class="aviso-form" data-aviso>
+          <h2 class="consola__tit">Avisar a la mesa</h2>
+          <input class="entrada entrada--chica" name="quien" list="dl-quien" placeholder="Quién" maxlength="60" aria-label="Quién" autocomplete="off">
+          <datalist id="dl-quien"></datalist>
+          <input class="entrada entrada--chica" name="que" list="dl-que" placeholder="Qué hace: Bola de fuego, espadazo…" maxlength="80" aria-label="Qué hace" autocomplete="off">
+          <datalist id="dl-que"></datalist>
+          <input class="entrada entrada--chica" name="nota" placeholder="Daño o efecto (opcional)" maxlength="80" aria-label="Daño o efecto" autocomplete="off">
+          <div class="aviso-form__res">
+            <button class="boton boton--chico res res--acierta" type="submit" value="acierta">Acierta</button>
+            <button class="boton boton--chico res res--falla" type="submit" value="falla">Falla</button>
+            <button class="boton boton--chico res res--critico" type="submit" value="critico">Crítico</button>
+            <button class="boton boton--chico boton--secundario" type="submit" value="neutro">Solo avisar</button>
+          </div>
+        </form>
+      </aside>
+
+      <section class="consola__panel">
+        <div class="consola__vistas" role="tablist" aria-label="Secciones de la mesa" data-vistas></div>
+        <div class="consola__vista" data-vista aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
+
+  <dialog class="hoja" id="anadir-dlg" aria-labelledby="an-titulo">
+    <div class="hoja__in form">
+      <div class="hoja__cab"><h2 id="an-titulo">Añadir a la escena</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div class="segmento" role="group" aria-label="Tipo" data-an-tipos></div>
+      <input class="entrada" type="search" placeholder="Buscar por nombre o rol" aria-label="Buscar" data-an-buscar>
+      <div class="an-lista" data-an-lista></div>
+      <div class="an-bestia">
+        <h3 class="consola__tit">Del bestiario</h3>
+        <div class="an-bestia__fila">
+          <select class="entrada" aria-label="Criatura" data-an-criatura></select>
+          <input class="entrada" type="number" min="1" max="12" value="1" aria-label="Cuántos" data-an-cuantos>
+          <button class="boton boton--secundario" type="button" data-an-bestia>Añadir</button>
+        </div>
+      </div>
+      <div class="hoja__pie"><button class="boton boton--primario" type="button" data-cerrar-texto>Listo</button></div>
+    </div>
+  </dialog>
 
   <dialog class="hoja hoja--ancha" id="ver-ficha" aria-label="Ficha">
     <div class="hoja__in">

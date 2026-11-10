@@ -17,15 +17,17 @@
 
   function montar(cont, { editable = false } = {}) {
     cont.classList.add('tablero');
-    cont.innerHTML = `<img class="tablero__fondo" alt="" hidden><div class="tablero__capa"></div><div class="tablero__grupo" hidden></div><div class="tablero__sobre"></div><div class="tablero__telon" hidden></div>`;
+    cont.innerHTML = `<img class="tablero__fondo" alt="" hidden><div class="tablero__capa"></div><div class="tablero__leyenda" hidden></div><div class="tablero__grupo" hidden></div><div class="tablero__modo"></div><div class="tablero__sobre"></div><div class="tablero__telon" hidden></div>`;
     const fondo = cont.querySelector('.tablero__fondo'), capa = cont.querySelector('.tablero__capa');
     const cajaGrupo = cont.querySelector('.tablero__grupo'), sobre = cont.querySelector('.tablero__sobre'), telon = cont.querySelector('.tablero__telon');
+    const leyenda = cont.querySelector('.tablero__leyenda'), capaModo = cont.querySelector('.tablero__modo');
     const nodos = new Map();   // id → { el, firma, particulas }
+    let numeros = new Map(), firmaModo = '', brasasModo = null;
     let presente = null, avisoActual = null, relojAviso = 0;
 
     function colocar(el, d) {
       el.style.left = d.x + '%'; el.style.top = d.y + '%'; el.style.width = d.w + '%';
-      el.style.height = d.tipo === 'texto' ? '' : d.h + '%';
+      el.style.height = d.tipo === 'texto' || d.tipo === 'punto' ? '' : d.h + '%';
       el.style.transform = `translate(-50%, -50%) rotate(${d.rot || 0}deg)`;
       el.style.opacity = d.op ?? 1;
     }
@@ -47,6 +49,9 @@
         el.classList.add('el--' + (d.forma || 'circulo')); if (d.pulso !== false) el.classList.add('el--pulso');
         el.style.setProperty('--c', COLOR[d.color] || COLOR.oxido); el.style.setProperty('--c-rgb', RGB[d.color] || RGB.oxido);
         el.innerHTML = `<i></i>${d.etq ? `<span>${e(d.etq)}</span>` : ''}`;
+      } else if (d.tipo === 'punto') {
+        if (d.visible === false) el.classList.add('el--punto-oculto');
+        el.innerHTML = `<b>${numeros.get(d.id) || '·'}</b>${editable && d.etq ? `<span>${e(d.etq)}</span>` : ''}`;
       } else if (d.tipo === 'efecto') {
         el.classList.add('el--' + (d.clase || 'llamas'));
         if (d.clase === 'oscuridad') el.innerHTML = '';
@@ -60,34 +65,85 @@
       const lista = (escena && escena.elementos) || [];
       if (escena && escena.fondo) { if (fondo.getAttribute('src') !== escena.fondo) fondo.src = escena.fondo; fondo.hidden = false; fondo.dataset.ajuste = escena.ajuste || 'contain'; }
       else { fondo.hidden = true; fondo.removeAttribute('src'); }
+      // Los jugadores ven números seguidos: los puntos ocultos no cuentan.
+      const puntos = lista.filter(d => d.tipo === 'punto' && d.visible !== false);
+      numeros = new Map(puntos.map((d, i) => [d.id, i + 1]));
+      const conNombre = puntos.filter(d => d.etq);
+      leyenda.hidden = !conNombre.length || (escena && escena.leyenda === false);
+      leyenda.innerHTML = conNombre.map(d => `<li><i>${numeros.get(d.id)}</i>${e(d.etq)}</li>`).join('');
       const vistos = new Set();
       lista.forEach((d, i) => {
         vistos.add(d.id);
         let n = nodos.get(d.id);
         if (!n) { n = { el: document.createElement('div'), firma: '' }; n.el.dataset.el = d.id; nodos.set(d.id, n); capa.append(n.el); }
-        const f = firmaDe(d);
+        const f = firmaDe(d) + (numeros.get(d.id) || '');
         if (f !== n.firma) { contenido(n, d); n.firma = f; }
         colocar(n.el, d); n.el.style.zIndex = i + 1;
       });
       for (const [idEl, n] of nodos) if (!vistos.has(idEl)) { n.particulas && n.particulas.parar(); n.el.remove(); nodos.delete(idEl); }
     }
 
-    /* ---------- Grupo en escena ---------- */
-    function grupo(lista, pos) {
-      const ver = lista && lista.length && pos && pos !== 'oculto';
+    /* ---------- Grupo en escena: tabla compacta con retrato, nombre, vida y CA ---------- */
+    const filaGrupo = (p, cfg, clase) => {
+      const f = p.pgMax ? Math.max(0, Math.min(1, p.pg / p.pgMax)) : 1;
+      const verPg = !p.pgMax || cfg.pg === false ? 'no' : p.tipo === 'pj' ? 'numero' : (cfg.enemigos || 'estado');
+      return `<div class="${clase} gp--${e(p.tipo)}${p.turno ? ' is-turno' : ''}${p.pg <= 0 && p.pgMax ? ' is-caido' : ''}">
+        ${F.ficha ? F.ficha.retrato(p, 'gp__retrato') : ''}
+        <div class="gp__txt"><b>${e(p.nombre)}</b>${clase === 'mf' && p.linea ? `<em>${e(p.linea)}</em>` : ''}
+          ${verPg !== 'no' ? `<span class="gp__barra" data-nivel="${f > .6 ? 'bien' : f > .25 ? 'medio' : 'mal'}"><i data-f="${Math.round(f * 100)}"></i></span>
+          <small>${verPg === 'numero' ? `${e(p.pg)} / ${e(p.pgMax)} PG` : salud(p.pg, p.pgMax)}</small>` : ''}
+        </div>
+        ${cfg.ca !== false && p.ca !== '' && p.ca !== undefined ? `<span class="gp__ca"><b>${e(p.ca)}</b><small>CA</small></span>` : ''}
+      </div>`;
+    };
+    const anchos = caja => caja.querySelectorAll('[data-f]').forEach(i => { i.style.width = i.dataset.f + '%'; });
+    function grupo(lista, cfg) {
+      cfg = typeof cfg === 'string' ? { pos: cfg } : (cfg || {});
+      const pos = cfg.pos || 'derecha', ver = lista && lista.length && pos !== 'oculto';
       cajaGrupo.hidden = !ver;
       if (!ver) return;
       cajaGrupo.dataset.pos = pos;
-      cajaGrupo.innerHTML = lista.map(p => {
-        const f = p.pgMax ? Math.max(0, Math.min(1, p.pg / p.pgMax)) : 1, est = salud(p.pg, p.pgMax);
-        return `<div class="gp gp--${e(p.tipo)}${p.turno ? ' is-turno' : ''}${p.pg <= 0 && p.pgMax ? ' is-caido' : ''}" data-gp="${e(p.id)}">
-          ${F.ficha ? F.ficha.retrato(p, 'gp__retrato') : ''}
-          <div class="gp__txt"><b>${e(p.nombre)}</b>
-            ${p.pgMax ? `<span class="gp__barra" data-nivel="${f > .6 ? 'bien' : f > .25 ? 'medio' : 'mal'}"><i data-f="${Math.round(f * 100)}"></i></span>
-            <small>${p.tipo === 'pj' ? `${e(p.pg)} / ${e(p.pgMax)} PG` : est}</small>` : ''}
-          </div></div>`;
-      }).join('');
-      cajaGrupo.querySelectorAll('[data-f]').forEach(i => { i.style.width = i.dataset.f + '%'; });
+      cajaGrupo.innerHTML = lista.map(p => filaGrupo(p, cfg, 'gp')).join('');
+      anchos(cajaGrupo);
+    }
+
+    /* ---------- Modos que no son el mapa: portada, un acontecimiento de la crónica y las fichas en escena ---------- */
+    const TIPOS_EV = { escena: 'Escena', personaje: 'Personaje', combate: 'Combate', descubrimiento: 'Descubrimiento', decision: 'Decisión', hito: 'Hito' };
+    function modo(s) {
+      const m = s.modo || 'mapa';
+      cont.dataset.modo = m;
+      const firma = m + JSON.stringify(m === 'portada' ? s.portada : m === 'cronica' ? s.evento : m === 'fichas' ? [s.grupo, s.cfg] : 0);
+      if (firma === firmaModo) return;
+      const claveAnim = m + (s.evento ? s.evento.id : ''), cambioDeModo = claveAnim !== cont.dataset.anim;
+      cont.dataset.anim = claveAnim; firmaModo = firma;
+      if (brasasModo) { brasasModo.parar(); brasasModo = null; }
+      const po = s.portada || {}, ev = s.evento;
+      if (m === 'portada') {
+        capaModo.innerHTML = `<div class="mp mp--portada${po.img ? ' mp--conimg' : ''}"><canvas class="mp__brasas"></canvas>
+          <div class="mp__txt"><p class="mp__kicker">Crónica de campaña${po.amb ? ' · ' + e(po.amb) : ''}</p><h1 class="gotica">${e(po.titulo)}</h1>${po.sinopsis ? `<p class="mp__cuerpo">${e(po.sinopsis)}</p>` : ''}</div>
+          ${po.img ? `<div class="mp__img"><img src="${e(po.img)}" alt=""></div>` : ''}
+          <span class="mp__sello"><small>Sesión</small><b>${String(po.sesion || 1).padStart(2, '0')}</b></span></div>`;
+        brasasModo = F.particulas(capaModo.querySelector('canvas'), 'brasas', { color: 'verde', origen: 'ancho', densidad: .7, forzar: true });
+      } else if (m === 'cronica') {
+        capaModo.innerHTML = ev ? `<div class="mp mp--evento${ev.img ? ' mp--conimg' : ''}${(ev.texto || '').length > 420 ? ' mp--largo' : ''}">
+          <div class="mp__txt"><p class="mp__kicker">${e(TIPOS_EV[ev.tipo] || 'Crónica')}${ev.lugar ? ' · ' + e(ev.lugar) : ''}</p><h1>${e(ev.titulo)}</h1>
+            ${ev.texto ? `<p class="mp__cuerpo">${e(ev.texto)}</p>` : ''}${ev.cita ? `<blockquote class="gotica">${e(ev.cita)}</blockquote>` : ''}
+            ${ev.quien && ev.quien.length ? `<div class="mp__quien">${ev.quien.map(q => `<span>${q.img ? `<img src="${e(q.img)}" alt="">` : ''}${e(q.nombre)}</span>`).join('')}</div>` : ''}</div>
+          ${ev.img ? `<div class="mp__img"><img src="${e(ev.img)}" alt=""></div>` : ''}</div>`
+          : `<div class="mp mp--portada"><div class="mp__txt"><p class="mp__kicker">Crónica</p><h1 class="gotica">${e(po.titulo || '')}</h1></div></div>`;
+      } else if (m === 'fichas') {
+        const l = s.grupo || [];
+        capaModo.innerHTML = `<div class="mp mp--fichas"><div class="mp__rejilla">${l.map(p => filaGrupo(p, s.cfg || {}, 'mf')).join('') || '<p class="mp__kicker">Nadie en escena</p>'}</div></div>`;
+        const rej = capaModo.querySelector('.mp__rejilla');
+        rej.style.gridTemplateColumns = `repeat(${l.length <= 1 ? 1 : l.length <= 4 ? 2 : l.length <= 9 ? 3 : 4}, minmax(0, 1fr))`;
+        rej.dataset.n = l.length <= 4 ? 'pocos' : l.length <= 9 ? 'varios' : 'muchos';
+        anchos(capaModo);
+      } else capaModo.innerHTML = '';
+      const g = window.gsap;
+      if (g && !F.reducido() && cambioDeModo && capaModo.firstElementChild) {
+        g.from(capaModo.firstElementChild, { opacity: 0, duration: .5, ease: 'power1.out' });
+        g.from(capaModo.querySelectorAll('.mp__kicker, h1, .mp__cuerpo, blockquote, .mp__quien, .mp__img, .mf, .mp__sello'), { y: 24, opacity: 0, duration: .7, stagger: .07, ease: 'power3.out', clearProps: 'transform,opacity' });
+      }
     }
 
     /* ---------- Presentación: imagen, título y descripción sobre el mapa ---------- */
@@ -156,8 +212,8 @@
     }
 
     const negro = si => { telon.hidden = !si; };
-    const estado = s => { pintar(s.escena); grupo(s.grupo, s.pos); presentar(s.presentacion); aviso(s.aviso); negro(s.negro); };
-    return { pintar, grupo, presentar, aviso, negro, estado, capa, nodo: idEl => (nodos.get(idEl) || {}).el, editable };
+    const estado = s => { pintar(s.escena); grupo(s.grupo, s.cfg || s.pos); modo(s); presentar(s.presentacion); aviso(s.aviso); negro(s.modo === 'negro' || s.negro); };
+    return { pintar, grupo, modo, presentar, aviso, negro, estado, capa, nodo: idEl => (nodos.get(idEl) || {}).el, editable };
   }
 
   F.tablero = { montar, COLOR, EFECTOS, FORMAS, PLANTILLAS, AMBIENTES, salud };

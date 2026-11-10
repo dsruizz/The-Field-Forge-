@@ -15,6 +15,7 @@
   <script src="js/reglas/bestiario.js"></script>
   <script src="js/ficha.js"></script>
   <script src="js/particulas.js"></script>
+  <script src="js/vivo.js"></script>
 </head>
 <body>
   <header class="barra">
@@ -72,6 +73,10 @@
       <div class="campo"><label for="ev-titulo">Título</label><input class="entrada" id="ev-titulo" name="titulo" required maxlength="140"></div>
       <div class="campo"><label for="ev-lugar">Lugar</label><input class="entrada" id="ev-lugar" name="lugar" maxlength="140"></div>
       <div class="campo"><label for="ev-texto">Qué pasó</label><textarea class="entrada" id="ev-texto" name="texto" maxlength="6000"></textarea></div>
+      <div class="retrato-carga">
+        <div class="ficha__retrato" data-ev-img></div>
+        <div class="campo"><label for="ev-img">Imagen <span class="suave">(opcional)</span></label><input class="entrada" id="ev-img" type="file" accept="image/*"><button class="boton boton--fantasma boton--chico" type="button" data-ev-quitar hidden>Quitar imagen</button></div>
+      </div>
       <div class="campo"><label for="ev-cita">Cita <span class="suave">(opcional)</span></label><input class="entrada" id="ev-cita" name="cita" maxlength="240"></div>
       <div class="campo"><span class="etq">Quién aparece</span><div class="selector-enlaces" data-enlaces></div></div>
       <label class="casilla"><input type="checkbox" name="oculto"> Solo para el DM (los jugadores no lo ven)</label>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Escena · The Field Forge</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="img/favicon.ico">
+  <link rel="stylesheet" href="css/forja.css">
+  <link rel="stylesheet" href="css/mesa.css">
+  <script src="js/comun.js"></script>
+  <script src="vendor/gsap/gsap.min.js"></script>
+  <script src="js/reglas/dados.js"></script>
+  <script src="js/reglas/reglas5e.js"></script>
+  <script src="js/ficha.js"></script>
+  <script src="js/particulas.js"></script>
+  <script src="js/tablero.js"></script>
+  <script src="js/vivo.js"></script>
+</head>
+<body class="pag-mesa pag-editor">
+  <header class="mbar">
+    <a class="boton boton--fantasma boton--icono" href="campanas.html" data-volver aria-label="Volver a la mesa" title="Volver a la mesa"></a>
+    <div class="menu mbar__escenas" data-escenas>
+      <button class="mbar__escena" type="button" aria-haspopup="true" aria-expanded="false" data-escena-boton><span data-escena-nombre>Escena</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="menu__lista" hidden data-escena-lista></div>
+    </div>
+    <div class="mbar__herr" role="toolbar" aria-label="Añadir a la escena" data-herramientas></div>
+    <div class="mbar__der">
+      <span class="mbar__estado suave" data-guardado aria-live="polite"></span>
+      <button class="herr" type="button" data-vivo aria-pressed="false" title="Lleva esta escena al proyector"></button>
+      <button class="boton boton--primario boton--chico" type="button" data-proyector></button>
+      <button class="herr herr--icono" type="button" data-panel aria-pressed="true" aria-label="Mostrar u ocultar el panel" title="Mostrar u ocultar el panel"></button>
+    </div>
+  </header>
+
+  <div class="mesa" data-mesa>
+    <main class="mesa__escenario">
+      <div class="mesa__caja"><div data-tablero></div></div>
+      <p class="mesa__pista suave" data-pista></p>
+    </main>
+    <aside class="dock" data-dock aria-label="Panel">
+      <div class="dock__cuerpo" data-dock-cuerpo></div>
+    </aside>
+  </div>
+
+  <input type="file" accept="image/*" hidden data-archivo>
+
+  <script src="js/editor.js"></script>
+</body>
+</html>

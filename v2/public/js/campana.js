@@ -63,7 +63,7 @@
       [resumen.pjs.length, resumen.pjs.length === 1 ? 'personaje jugador' : 'personajes jugadores'],
       ult ? [ROMANO(ult.sesion), 'último: ' + ult.titulo] : null
     ].filter(Boolean).map(([b, s]) => `<div class="cifra"><b>${e(b)}</b><span>${e(s)}</span></div>`).join('');
-    $('[data-acciones-portada]').innerHTML = `<span class="chip ${esDm ? 'chip--dm' : ''}">${esDm ? 'Eres el DM' : 'Jugador · solo lectura'}</span>${esDm ? `<a class="boton boton--primario" href="mesa.html?id=${encodeURIComponent(id)}">${F.icono('mesa')}Mesa y proyección</a>` : ''}`;
+    $('[data-acciones-portada]').innerHTML = `<span class="chip ${esDm ? 'chip--dm' : ''}">${esDm ? 'Eres el DM' : 'Jugador · solo lectura'}</span>`;
     if (!pintarPortada.brasas) pintarPortada.brasas = F.particulas($('[data-chispas]'), 'brasas', { color: 'verde', origen: 'ancho', densidad: .45 });
   }
 
@@ -72,7 +72,8 @@
   function pintarPestanas() {
     $('[data-pestanas-caja]').hidden = false;
     if (!PESTANAS().some(([k]) => k === pestana)) pestana = 'cronica';
-    $('[data-pestanas]').innerHTML = PESTANAS().map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === pestana}" data-pestana="${k}">${t}</button>`).join('');
+    $('[data-pestanas]').innerHTML = PESTANAS().map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === pestana}" data-pestana="${k}">${t}</button>`).join('')
+      + (esDm ? `<a class="pestana-mesa" href="mesa.html?id=${encodeURIComponent(id)}">${F.icono('mesa')}Mesa y proyección</a>` : '');
   }
   $('[data-pestanas]').addEventListener('click', ev => {
     const b = ev.target.closest('[data-pestana]'); if (!b) return;
@@ -97,6 +98,9 @@
       (!q || [x.titulo, x.texto, x.lugar, x.cita].join(' ').toLowerCase().includes(q)));
     const porSesion = sesiones.map(n => [n, visibles.filter(x => x.sesion === n).sort((a, b) => (a.t || 0) - (b.t || 0))]).filter(([, l]) => l.length);
     const titulos = (datos.campana && datos.campana.sesiones) || {};
+    // Numeración corrida de toda la campaña, en el orden en que pasó.
+    const orden = cr.slice().sort((a, b) => (a.sesion - b.sesion) || ((a.t || 0) - (b.t || 0)));
+    numeroEv = new Map(orden.map((x, i) => [x.id, i + 1]));
 
     main.innerHTML = `
       <div class="herramientas">
@@ -109,33 +113,38 @@
       </div>
       ${porSesion.length ? `<div class="cronica">${porSesion.map(([n, lista]) => `
         <section class="sesion" aria-label="Sesión ${n}">
-          <header class="sesion__cab"><span class="sesion__num">${ROMANO(n)}</span><h2 class="sesion__titulo">${e(titulos[n] || 'Sesión ' + n)}<small>${lista.length} ${lista.length === 1 ? 'acontecimiento' : 'acontecimientos'}</small></h2></header>
-          ${lista.map(evento).join('')}
+          <header class="sesion__cab"><span class="sesion__num" aria-hidden="true">${ROMANO(n)}</span><h2 class="sesion__titulo"><small>Sesión ${String(n).padStart(2, '0')} · ${lista.length} ${lista.length === 1 ? 'acontecimiento' : 'acontecimientos'}</small>${e(titulos[n] || 'Sesión ' + n)}</h2></header>
+          <div class="linea">${lista.map(evento).join('')}</div>
         </section>`).join('')}</div>`
         : `<div class="vacio"><h2>${q ? 'Nada coincide' : 'La historia empieza aquí'}</h2><p>${q ? 'Prueba con otras palabras.' : esDm ? 'Registra el primer acontecimiento de la campaña.' : 'Cuando el DM registre lo que pasa en las sesiones, aparecerá aquí.'}</p>${esDm && !q ? `<div class="vacio__acciones"><button class="boton boton--primario" type="button" data-nuevo-evento>${F.icono('mas')}Primer acontecimiento</button></div>` : ''}</div>`}`;
 
     const buscar = main.querySelector('[data-buscar]');
     buscar.addEventListener('input', () => { filtro.texto = buscar.value; const pos = buscar.selectionStart; panelCronica(); const b = main.querySelector('[data-buscar]'); b.focus(); b.setSelectionRange(pos, pos); });
   }
+  let numeroEv = new Map(), vivoCr = null;
   function evento(x) {
     const enlaces = (x.enlaces || []).map(pjPorId).filter(Boolean);
     return `
-      <article class="evento${x.oculto ? ' evento--oculto' : ''}">
+      <article class="evento evento--${e(x.tipo)}${x.oculto ? ' evento--oculto' : ''}${x.img ? ' evento--conimg' : ''}">
+        <span class="evento__n" aria-hidden="true">${numeroEv.get(x.id) || ''}</span>
+        <div class="evento__panel">
         <div class="evento__meta">
           <span class="chip chip--${e(x.tipo)}">${e(TIPOS[x.tipo] || x.tipo)}</span>
           ${x.oculto ? '<span class="chip chip--oculto">Solo DM</span>' : ''}
           ${x.lugar ? `<span>${e(x.lugar)}</span>` : ''}
           ${esDm ? `<span class="evento__acciones">
+            <button class="boton boton--fantasma boton--chico boton--icono" type="button" data-proyectar-evento="${e(x.id)}" aria-label="Proyectar" title="Mostrar en el proyector">${F.icono('proyectar')}</button>
             <button class="boton boton--fantasma boton--chico boton--icono" type="button" data-ocultar="${e(x.id)}" aria-label="${x.oculto ? 'Mostrar a los jugadores' : 'Ocultar a los jugadores'}" title="${x.oculto ? 'Mostrar a los jugadores' : 'Ocultar a los jugadores'}">${F.icono(x.oculto ? 'ojoNo' : 'ojo')}</button>
             <button class="boton boton--fantasma boton--chico boton--icono" type="button" data-editar-evento="${e(x.id)}" aria-label="Editar">${F.icono('editar')}</button>
             <button class="boton boton--fantasma boton--chico boton--icono" type="button" data-borrar-evento="${e(x.id)}" aria-label="Borrar">${F.icono('borrar')}</button>
           </span>` : ''}
         </div>
         <h3>${e(x.titulo)}</h3>
-        ${x.img ? `<img class="evento__img" src="${e(x.img)}" alt="" loading="lazy">` : ''}
         ${x.texto ? `<p class="evento__texto">${e(x.texto)}</p>` : ''}
         ${x.cita ? `<blockquote class="evento__cita">${e(x.cita)}</blockquote>` : ''}
         ${enlaces.length ? `<div class="enlaces">${enlaces.map(p => `<button class="enlace-pj" type="button" data-ficha="${e(p.id)}"><span class="mono">${p.img ? `<img src="${e(p.img)}" alt="">` : e(p.nombre.charAt(0))}</span>${e(p.nombre)}</button>`).join('')}</div>` : ''}
+        </div>
+        ${x.img ? `<figure class="evento__img"><img src="${e(x.img)}" alt="" loading="lazy"></figure>` : ''}
       </article>`;
   }
 
@@ -143,10 +152,18 @@
   const dlgEv = F.dialogo($('#evento'));
   const formEv = dlgEv.querySelector('form');
   formEv.tipo.innerHTML = Object.entries(TIPOS).map(([k, t]) => `<option value="${k}">${t}</option>`).join('');
-  let editandoEv = null;
+  let editandoEv = null, imgEv = '';
+  const pintarImgEv = () => { const c = dlgEv.querySelector('[data-ev-img]'); c.innerHTML = imgEv ? `<img src="${e(imgEv)}" alt="">` : F.icono('imagen'); dlgEv.querySelector('[data-ev-quitar]').hidden = !imgEv; };
+  dlgEv.querySelector('#ev-img').addEventListener('change', async ev => {
+    const f = ev.target.files[0]; if (!f) return;
+    const aviso = formEv.querySelector('.aviso'); aviso.textContent = 'Subiendo imagen…';
+    try { imgEv = (await F.subirImagen(id, f, 1600, 'image/jpeg')).url; aviso.textContent = ''; pintarImgEv(); }
+    catch (err) { aviso.textContent = 'No se pudo subir la imagen: ' + err.message; }
+  });
+  dlgEv.querySelector('[data-ev-quitar]').addEventListener('click', () => { imgEv = ''; pintarImgEv(); });
   function abrirEvento(x) {
-    editandoEv = x || null;
-    formEv.reset();
+    editandoEv = x || null; imgEv = (x && x.img) || '';
+    formEv.reset(); pintarImgEv();
     dlgEv.querySelector('.aviso').textContent = '';
     $('#evento-titulo').textContent = x ? 'Editar acontecimiento' : 'Nuevo acontecimiento';
     const ultima = Math.max(1, ...(datos.cronica || []).map(c => c.sesion || 1));
@@ -170,7 +187,7 @@
     const sesion = Math.max(1, parseInt(formEv.sesion.value, 10) || 1);
     const nuevo = {
       sesion, tipo: formEv.tipo.value, titulo: formEv.titulo.value.trim(), lugar: formEv.lugar.value.trim(), texto: formEv.texto.value.trim(), cita: formEv.cita.value.trim(),
-      enlaces: [...formEv.querySelectorAll('[name=enlace]:checked')].map(i => i.value), oculto: formEv.oculto.checked
+      enlaces: [...formEv.querySelectorAll('[name=enlace]:checked')].map(i => i.value), oculto: formEv.oculto.checked, img: imgEv
     };
     const titSes = formEv.sesionTitulo.value.trim();
     guardar(d => {
@@ -178,7 +195,7 @@
       if (titSes) d.campana.sesiones[sesion] = titSes;
       d.campana.sesionActual = Math.max(d.campana.sesionActual || 1, sesion);
       if (editandoEv) Object.assign(d.cronica.find(c => c.id === editandoEv.id), nuevo);
-      else d.cronica.push({ id: uid('ev'), img: '', t: Date.now(), ...nuevo });
+      else d.cronica.push({ id: uid('ev'), t: Date.now(), ...nuevo });
     }, editandoEv ? 'Acontecimiento actualizado' : 'Acontecimiento añadido');
     dlgEv.close();
   });
@@ -366,6 +383,12 @@
     if (d.tipo) { filtro.tipo = d.tipo; panelPersonajes(); return; }
     if (d.ficha) return verFicha(d.ficha);
     if ('nuevoEvento' in d) return abrirEvento();
+    if (d.proyectarEvento) {
+      // El control del proyector es compartido con la mesa: aquí solo se le dice qué acontecimiento mostrar.
+      if (!vivoCr) { F.vivo.preparar(datos); vivoCr = F.vivo.crear({ id, datos: () => datos, resumen }); }
+      vivoCr.poner({ modo: 'cronica', eventoId: d.proyectarEvento });
+      return F.toast('En el proyector. Si no lo tienes abierto, ábrelo desde Mesa y proyección.');
+    }
     if (d.editarEvento) return abrirEvento(datos.cronica.find(c => c.id === d.editarEvento));
     if (d.ocultar) return guardar(dd => { const c = dd.cronica.find(x => x.id === d.ocultar); c.oculto = !c.oculto; }, 'Visibilidad cambiada');
     if (d.borrarEvento) { if (confirm('¿Borrar este acontecimiento?')) guardar(dd => { dd.cronica = dd.cronica.filter(x => x.id !== d.borrarEvento); }, 'Acontecimiento borrado'); return; }
