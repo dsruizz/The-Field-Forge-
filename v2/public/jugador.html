@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mi personaje · The Field Forge</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#262626">
+  <link rel="icon" href="img/favicon.ico">
+  <link rel="stylesheet" href="css/forja.css">
+  <link rel="stylesheet" href="css/jugador.css">
+  <script src="js/comun.js"></script>
+  <script src="vendor/gsap/gsap.min.js"></script>
+  <script src="js/reglas/dados.js"></script>
+  <script src="js/reglas/reglas5e.js"></script>
+  <script src="js/ficha.js"></script>
+</head>
+<body class="pag-jugador">
+  <header class="jbarra">
+    <a class="jbarra__atras" href="campanas.html" data-miga aria-label="Volver a la campaña"></a>
+    <p class="jbarra__camp" data-campana></p>
+    <button class="boton boton--fantasma boton--icono" type="button" data-icono-tema></button>
+  </header>
+
+  <p class="jmodo" data-modo hidden></p>
+  <main class="jmain" data-contenido aria-live="polite"></main>
+
+  <nav class="jtabs" aria-label="Secciones de tu personaje" data-tabs hidden></nav>
+
+  <!-- Un objeto del inventario -->
+  <dialog class="hoja hoja--abajo" id="objeto-dlg" aria-labelledby="ob-nombre">
+    <div class="hoja__in">
+      <div class="hoja__cab"><div class="ob-cab" data-ob-cab></div><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div data-ob-cuerpo></div>
+    </div>
+  </dialog>
+
+  <!-- Pedir un objeto nuevo -->
+  <dialog class="hoja hoja--abajo" id="pedir-dlg" aria-labelledby="pd-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab"><h2 id="pd-titulo">Añadir al inventario</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <p class="suave" data-pd-nota></p>
+      <div class="campo"><label for="pd-n">Qué es</label><input class="entrada" id="pd-n" name="n" maxlength="60" required placeholder="Poción de curación" autocomplete="off"></div>
+      <div class="campo"><span class="etq">Tipo</span><div class="tipos" role="group" aria-label="Tipo de objeto" data-pd-tipos></div></div>
+      <div class="fila">
+        <div class="campo"><label for="pd-cant">Cantidad</label><input class="entrada" id="pd-cant" name="cant" type="number" inputmode="numeric" min="1" max="9999" value="1"></div>
+      </div>
+      <div class="campo"><label for="pd-nota">Nota <span class="suave">(opcional)</span></label><input class="entrada" id="pd-nota" name="nota" maxlength="140" placeholder="Cura 2d4+2" autocomplete="off"></div>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit" data-pd-enviar>Pedir al DM</button></div>
+    </form>
+  </dialog>
+
+  <script src="js/jugador.js"></script>
+</body>
+</html>

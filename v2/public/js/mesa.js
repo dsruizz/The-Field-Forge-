@@ -111,6 +111,7 @@
             <button class="chip-btn" type="button" data-ojo="${e(p.id)}" aria-pressed="${!oculto}" title="${oculto ? 'Mostrar en el proyector' : 'Ocultar del proyector'}">${F.icono(oculto ? 'ojoNo' : 'ojo')}${oculto ? 'Oculto' : 'Visible'}</button>
             <button class="chip-btn" type="button" data-turno-de="${e(p.id)}" aria-pressed="${mesa.turno === p.id}">${F.icono('dado')}Turno</button>
             <span class="ec__orden">
+              ${p.tipo === 'pj' ? `<a class="herr herr--icono" href="jugador.html?id=${encodeURIComponent(id)}&pj=${encodeURIComponent(p.id)}" title="Ver su móvil: conjuros e inventario" aria-label="Ver el móvil de ${e(p.nombre)}">${F.icono('movil')}</a>` : ''}
               <button class="herr herr--icono" type="button" data-orden="${e(p.id)}" title="Subir en el orden de turnos" aria-label="Subir en el orden">${F.icono('arriba')}</button>
               <button class="herr herr--icono" type="button" data-sale="${e(p.id)}" title="Sacar de la escena" aria-label="Sacar de la escena">${F.icono('cerrar')}</button>
             </span>
@@ -286,6 +287,9 @@
     dlgPres.close(); vista = 'presentaciones';
     cambio(() => { if (presEdit) Object.assign(presEdit, d); else mesa.presentaciones.push({ id: uid('pre'), ...d }); });
   });
+
+  // Lo que los jugadores cambian en su móvil (vida, inventario) llega aquí y sigue hasta el proyector.
+  F.peticiones.montar({ id, caja: $('[data-pets]'), datos: () => datos, alCambiar: () => { if (!document.querySelector('dialog[open]')) pintarVista(); vivo.emitir(); }, alRev: r => { if (r === rev + 1) rev = r; } });
 
   pintarVista();
   vivo.emitir();

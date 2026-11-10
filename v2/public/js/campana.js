@@ -73,7 +73,8 @@
     $('[data-pestanas-caja]').hidden = false;
     if (!PESTANAS().some(([k]) => k === pestana)) pestana = 'cronica';
     $('[data-pestanas]').innerHTML = PESTANAS().map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === pestana}" data-pestana="${k}">${t}</button>`).join('')
-      + (esDm ? `<a class="pestana-mesa" href="mesa.html?id=${encodeURIComponent(id)}">${F.icono('mesa')}Mesa y proyección</a>` : '');
+      + (esDm ? `<a class="pestana-mesa" href="mesa.html?id=${encodeURIComponent(id)}">${F.icono('mesa')}Mesa y proyección</a>`
+        : `<a class="pestana-mesa" href="jugador.html?id=${encodeURIComponent(id)}">${F.icono('movil')}Mi personaje</a>`);
   }
   $('[data-pestanas]').addEventListener('click', ev => {
     const b = ev.target.closest('[data-pestana]'); if (!b) return;
@@ -328,6 +329,9 @@
 
   /* ---------- Grupo y ajustes ---------- */
   function panelGrupo() {
+    const pjs = (datos.personajes || []).filter(p => p.tipo === 'pj'), jug = datos.jugadores || {};
+    const jugadores = miembros.filter(m => m.rol === 'jugador');
+    const lleva = idp => Object.keys(jug).find(k => jug[k] === idp) || '';
     main.innerHTML = `
       <div class="ajustes">
         ${esDm ? `
@@ -342,10 +346,18 @@
         </section>
         ${esDm ? `
         <section class="panel">
+          <h2>Personajes y móviles</h2>
+          <p class="suave">Cada jugador ve en su teléfono la ficha, la vida, los conjuros y el inventario de su personaje. Lo elige al entrar, o lo repartes tú aquí. Lo que pidan te llega como aviso para aprobarlo.</p>
+          <ul class="reparto">${pjs.map(p => `<li><b>${e(p.nombre)}</b>
+            <select class="entrada" data-asignar="${e(p.id)}" aria-label="Quién lleva a ${e(p.nombre)}"><option value="">Sin jugador</option>${jugadores.map(m => `<option value="${e(m.usuario)}"${lleva(p.id) === m.usuario ? ' selected' : ''}>${e(m.usuario)}</option>`).join('')}</select>
+            <span class="reparto__acc"><a class="boton boton--secundario boton--chico" href="jugador.html?id=${encodeURIComponent(id)}&pj=${encodeURIComponent(p.id)}">${F.icono('movil')}Ver su móvil</a></span></li>`).join('') || '<li class="suave">Aún no hay personajes jugadores.</li>'}</ul>
+          <button class="boton boton--secundario" type="button" data-pj-prueba>${F.icono('mas')}Crear un PJ de prueba</button>
+          <p class="suave">El PJ de prueba se abre en modo prueba: actúas como jugador y las peticiones te llegan aquí y a la mesa.</p>
+        </section>
+        <section class="panel">
           <h2>Mesa y proyector</h2>
           <p class="suave">Prepara escenas sobre el mapa, presenta jefes y lugares y muestra los resultados a toda la mesa.</p>
           <a class="boton boton--primario" href="mesa.html?id=${encodeURIComponent(id)}">${F.icono('mesa')}Abrir la mesa</a>
-          <p class="suave">La sala para móviles sigue en la <a href="/clasica/" target="_blank" rel="noopener">herramienta clásica</a> hasta que la pasemos aquí.</p>
         </section>
         <section class="panel">
           <h2>Campaña</h2>
@@ -395,6 +407,14 @@
     if ('nuevoPj' in d) { formNp.reset(); formNp.querySelector('.aviso').textContent = ''; dlgNp.showModal(); return; }
     if (d.hilo) return;
     if (d.borrarHilo) return guardar(dd => { dd.hilos = dd.hilos.filter(h => h.id !== d.borrarHilo); }, 'Hilo borrado');
+    if ('pjPrueba' in d) {
+      const f = TFF.npc.generar({ tipo: 'pj', clase: 'mago', nivel: 3, nombre: 'PJ de prueba', rol: 'Para probar el móvil del jugador' });
+      const ob = (n, tipo, cant, nota, lugar) => ({ id: uid('ob'), n, tipo, cant, nota: nota || '', lugar: lugar || 'mochila' });
+      f.inv = [ob('Bastón', 'arma', 1, '1d6 contundente', 'equipado'), ob('Poción de curación', 'pocion', 2, 'Cura 2d4+2'), ob('Pergamino de Proyectil mágico', 'pergamino', 1), ob('Raciones', 'comida', 5), ob('Antorcha', 'herramienta', 3), ob('Monedas de oro', 'tesoro', 15)];
+      await guardar(dd => { dd.personajes.push(f); }, 'PJ de prueba creado');
+      location.href = `jugador.html?id=${encodeURIComponent(id)}&pj=${encodeURIComponent(f.id)}&simular=1&ver=mochila`;
+      return;
+    }
     if ('copiar' in d) { try { await navigator.clipboard.writeText(resumen.codigo); F.toast('Código copiado'); } catch { F.toast('No se pudo copiar. Selecciónalo a mano.'); } return; }
     if ('editarCamp' in d) {
       const f = dlgCamp.querySelector('form'); f.reset();
@@ -404,6 +424,15 @@
   });
   main.addEventListener('change', async ev => {
     const t = ev.target;
+    if (t.dataset.asignar) {
+      const antes = Object.keys(datos.jugadores || {}).find(k => datos.jugadores[k] === t.dataset.asignar);
+      if (!t.value && !antes) return;
+      try {
+        const r = await F.api('campanas/' + encodeURIComponent(id) + '/jugador', { metodo: 'POST', datos: { accion: 'asignar', usuario: t.value || antes, pj: t.value ? t.dataset.asignar : '' } });
+        datos.jugadores = r.jugadores; F.toast(t.value ? 'Personaje asignado' : 'Personaje libre');
+      } catch (err) { F.toast(err.message); }
+      return panelGrupo();
+    }
     if (t.dataset.hilo) return guardar(dd => { const h = dd.hilos.find(x => x.id === t.dataset.hilo); h.estado = t.checked ? 'resuelto' : 'abierto'; });
     if ('importar' in t.dataset && t.files[0]) {
       if (!confirm('Esto reemplaza el contenido actual de la campaña por el de la copia. ¿Continuar?')) { t.value = ''; return; }
@@ -427,6 +456,11 @@
   });
 
   /* ---------- Inicio ---------- */
+  // Peticiones de los jugadores y lo que cambian desde su móvil.
+  if (esDm) F.peticiones.montar({
+    id, caja: $('[data-pets]'), datos: () => datos, alRev: r => { if (r === rev + 1) rev = r; },
+    alCambiar: () => { if ((pestana === 'grupo' || pestana === 'personajes') && !document.querySelector('dialog[open]') && !main.contains(document.activeElement)) pintarPanel(false); }
+  });
   pintarPortada();
   pintarPestanas();
   pintarPanel(true);

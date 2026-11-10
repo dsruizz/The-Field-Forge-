@@ -442,3 +442,29 @@ dialog.hoja::backdrop { background: rgba(10, 10, 10, .5); backdrop-filter: blur(
 /* ---------- Notificación ---------- */
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; max-width: calc(100% - 32px); text-align: center; padding: 12px 18px; border-radius: 999px; background: var(--tinta); color: var(--papel); font-size: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .3); transition: opacity .2s, transform .2s; pointer-events: none; z-index: 60; }
 .toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- Peticiones de los jugadores (lado del DM) y «Mi personaje» ---------- */
+.pets { display: grid; gap: 12px; margin-bottom: 22px; padding: 16px; border-radius: 8px; background: var(--amarillo); color: var(--tinta); border: 2px solid var(--tinta); box-shadow: 7px 7px 0 var(--dura); }
+.pets[hidden] { display: none; }
+.pets__tit { display: flex; align-items: center; gap: 8px; font: 700 14px var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+.pets__tit svg { width: 20px; height: 20px; }
+.pets__tit i { font-style: normal; min-width: 24px; padding: 1px 7px; border-radius: 99px; background: var(--oxido); color: var(--papel); font-size: 12px; letter-spacing: 0; text-align: center; }
+.pets__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pet { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; background: #fff; color: var(--tinta); border: 2px solid var(--tinta); border-radius: 6px; }
+.pet__retrato { width: 44px; height: 44px; overflow: hidden; display: grid; place-items: center; background: var(--tinta); color: var(--amarillo); border-radius: 6px; font: 700 22px var(--gotica); }
+.pet__retrato img { width: 100%; height: 100%; object-fit: cover; }
+.pet p b { display: block; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--pizarra); }
+.pet p span { display: flex; align-items: center; gap: 6px; font-weight: 600; line-height: 1.25; }
+.pet p span svg { width: 18px; height: 18px; flex: none; }
+.pet p small { font-size: 12px; color: #5a5a5a; }
+.pet__acc { display: flex; gap: 6px; }
+.pet .boton { border-radius: 6px; }
+.pet .boton--secundario { border-color: var(--tinta); color: var(--tinta); }
+.pet .boton--secundario:hover { background: var(--papel); }
+@media (max-width: 620px) { .pet { grid-template-columns: 44px minmax(0, 1fr); } .pet__acc { grid-column: 1 / -1; } .pet__acc .boton { flex: 1; } }
+.reparto { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.reparto li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; }
+.reparto .entrada { min-height: 40px; padding: 6px 12px; font-size: 15px; }
+.reparto__acc { display: flex; gap: 4px; }
+.reparto li > b { grid-column: 1 / -1; font-weight: 600; }
+.pets-caja .pets { margin: 22px 0 0; }

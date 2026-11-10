@@ -293,7 +293,7 @@ function vistaJugador(d) {
       return { id: p.id, tipo: p.tipo, nombre: p.nombre, img: p.img, rol: p.rol, raza: p.raza, actitud: p.actitud, estado: p.estado, pers: { rasgo: (p.pers || {}).rasgo || '' } };
     });
   const c = d.campana || {};
-  return { version: d.version, campana: { titulo: c.titulo, sinopsis: c.sinopsis, portada: c.portada, sesiones: c.sesiones, sesionActual: c.sesionActual }, cronica, personajes, hilos: [], mapas: [] };
+  return { version: d.version, campana: { titulo: c.titulo, sinopsis: c.sinopsis, portada: c.portada, sesiones: c.sesiones, sesionActual: c.sesionActual }, cronica, personajes, hilos: [], mapas: [], jugadores: d.jugadores || {} };
 }
 function validarDatos(d) {
   if (!d || typeof d !== 'object' || Array.isArray(d)) fallo(400, 'Datos de campaña no válidos.');
@@ -319,8 +319,91 @@ function servirImagen(res, campanaId, nombre) {
   });
 }
 
+/* ---------- Jugadores: su PJ, su inventario y las peticiones al DM ----------
+   Lo que toca un jugador (PG, espacios de conjuro gastados, inventario) se guarda sin subir la revisión
+   de la campaña, para no echar al DM de su pestaña. Cada cambio deja una marca (_tj) en el personaje:
+   si el DM guarda una copia que no la había visto, se conservan esos campos del jugador.
+   «jugadores» (quién lleva a quién) y «peticiones» solo cambian por estas rutas. */
+const LUGARES = ['equipado', 'mochila', 'guardado'];
+const TIPOS_OBJ = ['arma', 'armadura', 'escudo', 'pocion', 'frasco', 'pergamino', 'comida', 'herramienta', 'tesoro', 'objeto'];
+const CAMPOS_JUGADOR = ['pg', 'inv', 'usados', '_tj'];
+const idCorto = p => p + '_' + crypto.randomBytes(5).toString('base64url');
+const entero = (v, min, max, def) => { const n = parseInt(v, 10); return Number.isNaN(n) ? def : Math.min(max, Math.max(min, n)); };
+const camposJugador = p => Object.fromEntries(CAMPOS_JUGADOR.map(k => [k, p[k]]));
+const marcar = p => { p._tj = Math.max(Date.now(), (p._tj || 0) + 1); };
+const fichaJugador = ({ notas, gen, ...p }) => p;
+const breve = p => ({ id: p.id, nombre: p.nombre, img: p.img || '', raza: p.raza || '', clase: p.clase || '', nivel: p.nivel || '' });
+
+// La primera vez, el inventario sale de lo que la ficha ya decía: sus armas y su armadura.
+function asegurarInv(p) {
+  if (Array.isArray(p.inv)) return false;
+  const armas = ((p.gen && p.gen.armas) || []).map(a => ({ id: idCorto('ob'), n: texto(a.n, 60), tipo: 'arma', cant: 1, nota: [a.d, a.t].filter(Boolean).join(' '), lugar: 'equipado' }));
+  const defensa = String(p.caDesc || '').split(/\s+y\s+|,|\+/).map(x => x.trim()).filter(x => x && !/sin armadura|natural|defensa/i.test(x))
+    .map(x => ({ id: idCorto('ob'), n: texto(x.charAt(0).toUpperCase() + x.slice(1), 60), tipo: /escudo/i.test(x) ? 'escudo' : 'armadura', cant: 1, nota: '', lugar: 'equipado' }));
+  p.inv = [...armas, ...defensa];
+  return true;
+}
+const guardarDatos = (c, d, subirRev) => {
+  const rev = c.rev + (subirRev ? 1 : 0);
+  db.prepare('UPDATE campanas SET datos = ?, rev = ?, actualizada = ? WHERE id = ?').run(JSON.stringify(d), rev, Date.now(), c.id);
+  return rev;
+};
+const pendientes = d => (d.peticiones || []).filter(x => x.estado === 'pendiente');
+function podarPeticiones(d) {
+  const p = d.peticiones || [];
+  const resueltas = p.filter(x => x.estado !== 'pendiente').slice(-30);
+  d.peticiones = [...resueltas, ...p.filter(x => x.estado === 'pendiente')].sort((a, b) => a.t - b.t);
+}
+// Aplica una petición ya autorizada. Devuelve los personajes que cambian.
+function aplicarPeticion(d, pet) {
+  const p = d.personajes.find(x => x.id === pet.pj && x.tipo === 'pj');
+  if (!p) fallo(409, 'Ese personaje ya no está en la campaña.');
+  asegurarInv(p);
+  const tocados = [p];
+  if (pet.tipo === 'anadir') {
+    if (p.inv.length >= 80) fallo(409, 'El inventario está lleno.');
+    p.inv.push({ id: idCorto('ob'), ...pet.nuevo, lugar: 'mochila' });
+  } else {
+    const ob = p.inv.find(x => x.id === pet.objeto);
+    if (!ob) fallo(409, 'Ese objeto ya no está en el inventario.');
+    const cant = Math.min(pet.cant || 1, ob.cant);
+    ob.cant -= cant;
+    if (ob.cant <= 0) p.inv = p.inv.filter(x => x !== ob);
+    if (pet.tipo === 'usar' && ob.tipo === 'pocion') {
+      const frasco = p.inv.find(x => x.tipo === 'frasco' && x.n === 'Frasco vacío');
+      if (frasco) frasco.cant += cant; else p.inv.push({ id: idCorto('ob'), n: 'Frasco vacío', tipo: 'frasco', cant, nota: 'Era: ' + ob.n, lugar: 'mochila' });
+    }
+    if (pet.tipo === 'dar') {
+      const a = d.personajes.find(x => x.id === pet.a && x.tipo === 'pj');
+      if (!a) fallo(409, 'Quien iba a recibirlo ya no está en la campaña.');
+      asegurarInv(a);
+      const igual = a.inv.find(x => x.n === ob.n && x.tipo === ob.tipo && (x.nota || '') === (ob.nota || ''));
+      if (igual) igual.cant += cant; else a.inv.push({ ...ob, id: idCorto('ob'), cant, lugar: 'mochila' });
+      tocados.push(a);
+    }
+  }
+  tocados.forEach(marcar);
+  return tocados;
+}
+
+/* Tiempo real (SSE): cada navegador abierto en una campaña escucha aquí los cambios. */
+const oyentes = new Map(); // campaña → Set de { res, dm, usuario }
+function difundir(campanaId, hacer) {
+  for (const o of oyentes.get(campanaId) || []) {
+    const dato = hacer(o);
+    if (dato) o.res.write('data: ' + JSON.stringify(dato) + '\n\n');
+  }
+}
+// Avisa de que cambiaron estos personajes: al DM le llega el detalle; al jugador, que vuelva a pedir lo suyo.
+function avisarCambio(campanaId, d, tocados = [], extra = {}) {
+  difundir(campanaId, o => o.dm
+    ? { parches: tocados.map(p => ({ id: p.id, campos: camposJugador(p) })), peticiones: pendientes(d), jugadores: d.jugadores || {}, ...extra }
+    : { pj: tocados.map(p => p.id) });
+}
+setInterval(() => { for (const grupo of oyentes.values()) for (const o of grupo) o.res.write(': sigo aquí\n\n'); }, 20000).unref();
+
 /* ---------- Rutas de la API ---------- */
-async function api(req, res, ruta) {
+async function api(req, res, ruta, consulta) {
   const m = req.method;
   const ip = ipDe(req);
 
@@ -414,7 +497,7 @@ async function api(req, res, ruta) {
   }
 
   /* ---- Contenido de la campaña ---- */
-  const md = /^campanas\/([\w-]{4,20})\/(datos|importar|img|img\/([\w.-]{1,80}))$/.exec(ruta);
+  const md = /^campanas\/([\w-]{4,20})\/(datos|importar|vivo|jugador|peticion|img|img\/([\w.-]{1,80}))$/.exec(ruta);
   if (md) {
     const u = exigirUsuario(req);
     const c = db.prepare('SELECT * FROM campanas WHERE id = ?').get(md[1]);
@@ -427,13 +510,158 @@ async function api(req, res, ruta) {
       const d = leerDatos(c);
       return json(res, 200, { rev: c.rev, rol: mem.rol, datos: esDm ? d : vistaJugador(d) });
     }
+    const fresca = () => db.prepare('SELECT * FROM campanas WHERE id = ?').get(c.id) || fallo(404, 'Esa campaña ya no existe.');
+
+    if (md[2] === 'vivo' && m === 'GET') {
+      const grupo = oyentes.get(c.id) || new Set();
+      if (grupo.size >= 60) fallo(429, 'Demasiadas ventanas abiertas en esta campaña.');
+      oyentes.set(c.id, grupo);
+      res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' });
+      res.write('retry: 3000\n\n');
+      const o = { res, dm: esDm, usuario: u.usuario };
+      grupo.add(o);
+      req.on('close', () => { grupo.delete(o); if (!grupo.size) oyentes.delete(c.id); });
+      return;
+    }
+
+    /* ---- Vista del jugador ---- */
+    if (md[2] === 'jugador' && m === 'GET') {
+      const d = leerDatos(c);
+      const jug = d.jugadores || {};
+      const idPj = esDm ? (consulta && consulta.get('pj')) || '' : jug[u.usuario];
+      const p = d.personajes.find(x => x.id === idPj && x.tipo === 'pj');
+      if (p && asegurarInv(p)) { marcar(p); guardarDatos(c, d); avisarCambio(c.id, d, [p]); }
+      const ocupados = new Set(Object.values(jug));
+      const pjs = d.personajes.filter(x => x.tipo === 'pj');
+      const quien = idp => Object.keys(jug).find(k => jug[k] === idp) || '';
+      return json(res, 200, {
+        rol: mem.rol, campana: c.nombre, pj: p ? fichaJugador(p) : null,
+        elegibles: esDm ? pjs.map(x => ({ ...breve(x), jugador: quien(x.id) })) : p ? [] : pjs.filter(x => !ocupados.has(x.id) && x.estado !== 'muerto').map(breve),
+        mios: !esDm && !p ? db.prepare('SELECT id, datos FROM personajes WHERE usuario_id = ? ORDER BY actualizado DESC').all(u.id).map(f => breve({ ...JSON.parse(f.datos), id: f.id })) : [],
+        companeros: p ? pjs.filter(x => x.id !== p.id && x.estado !== 'muerto').map(x => ({ id: x.id, nombre: x.nombre })) : [],
+        peticiones: p ? (d.peticiones || []).filter(x => x.pj === p.id).slice(-8) : []
+      });
+    }
+    if (md[2] === 'jugador' && m === 'POST') {
+      if (limitar('jug:' + u.id, 400, 5 * 60 * 1000)) fallo(429, 'Vas muy deprisa. Espera un momento.');
+      const b = await leerCuerpo(req);
+      const cc = fresca(), d = leerDatos(cc);
+      d.jugadores = d.jugadores || {}; d.peticiones = d.peticiones || [];
+      const accion = texto(b.accion, 20);
+      const pjLibre = idp => { const x = d.personajes.find(y => y.id === idp && y.tipo === 'pj'); return x && !Object.values(d.jugadores).includes(x.id) ? x : null; };
+
+      if (accion === 'asignar') {
+        if (!esDm) fallo(403, 'Solo el DM reparte los personajes.');
+        const quien = texto(b.usuario, 40);
+        const miembro = db.prepare("SELECT u.usuario FROM membresias m JOIN usuarios u ON u.id = m.usuario_id WHERE m.campana_id = ? AND u.usuario = ?").get(cc.id, quien);
+        if (!miembro) fallo(404, 'Esa persona no está en la campaña.');
+        for (const k of Object.keys(d.jugadores)) if (k === miembro.usuario || d.jugadores[k] === b.pj) delete d.jugadores[k];
+        if (b.pj) { if (!d.personajes.some(x => x.id === b.pj && x.tipo === 'pj')) fallo(404, 'Ese personaje no existe.'); d.jugadores[miembro.usuario] = b.pj; }
+        guardarDatos(cc, d); avisarCambio(cc.id, d, d.personajes.filter(x => x.id === b.pj));
+        difundir(cc.id, o => !o.dm && { pj: ['*'] });
+        return json(res, 200, { jugadores: d.jugadores });
+      }
+      if (!esDm && !d.jugadores[u.usuario]) {
+        // Aún sin personaje: elige uno libre de la campaña o trae uno de los suyos.
+        let p;
+        if (accion === 'elegir') p = pjLibre(b.pj) || fallo(409, 'Ese personaje ya lo lleva otra persona.');
+        else if (accion === 'traer') {
+          const fila = db.prepare('SELECT * FROM personajes WHERE id = ? AND usuario_id = ?').get(texto(b.personaje, 40), u.id);
+          if (!fila) fallo(404, 'Ese personaje no existe.');
+          if (d.personajes.filter(x => x.tipo === 'pj').length >= 12) fallo(409, 'La campaña ya tiene demasiados personajes jugadores.');
+          p = { ...JSON.parse(fila.datos), id: idCorto('pj'), tipo: 'pj', estado: 'activo', rol: 'PJ de ' + u.usuario };
+          d.personajes.push(p);
+        } else fallo(400, 'Primero elige tu personaje.');
+        asegurarInv(p); marcar(p);
+        d.jugadores[u.usuario] = p.id;
+        // Un personaje nuevo sí cambia la revisión: el DM lo recibe por el canal en vivo junto con ella.
+        const rev = guardarDatos(cc, d, accion === 'traer');
+        avisarCambio(cc.id, d, [p], accion === 'traer' ? { nuevo: p, rev } : {});
+        return json(res, 201, { ok: true });
+      }
+
+      // A partir de aquí se actúa sobre un personaje: el propio, o el que el DM tenga abierto.
+      const directo = esDm && !b.simular;
+      const p = d.personajes.find(x => x.id === (esDm ? b.pj : d.jugadores[u.usuario]) && x.tipo === 'pj');
+      if (!p) fallo(404, 'Ese personaje ya no está en la campaña.');
+      asegurarInv(p);
+      const objeto = () => p.inv.find(x => x.id === b.objeto) || fallo(409, 'Ese objeto ya no está en el inventario.');
+      let tocados = [p];
+
+      if (accion === 'soltar') { if (esDm) fallo(400, 'Usa «asignar».'); delete d.jugadores[u.usuario]; }
+      else if (accion === 'pg') p.pg = entero(b.valor, 0, p.pgMax || 999, p.pg ?? p.pgMax ?? 0);
+      else if (accion === 'espacio') {
+        const nivel = String(entero(b.nivel, 1, 9, 1)), max = Number(((p.conj || {}).espacios || {})[nivel]) || 0;
+        p.usados = { ...(p.usados || {}), [nivel]: entero(b.usados, 0, max, 0) };
+      }
+      else if (accion === 'descanso') { p.usados = {}; if (b.largo && p.pgMax) p.pg = p.pgMax; }
+      else if (accion === 'mover') { if (!LUGARES.includes(b.lugar)) fallo(400, 'Lugar no válido.'); objeto().lugar = b.lugar; }
+      else if (accion === 'cancelar') {
+        const pet = d.peticiones.find(x => x.id === b.peticion && x.pj === p.id && x.estado === 'pendiente');
+        if (pet) d.peticiones = d.peticiones.filter(x => x !== pet);
+      }
+      else if (accion === 'pedir') {
+        const tipo = ['anadir', 'usar', 'dar', 'tirar'].includes(b.tipo) ? b.tipo : fallo(400, 'Petición no válida.');
+        const pet = { id: idCorto('pet'), pj: p.id, quien: p.nombre, usuario: u.usuario, tipo, t: Date.now(), estado: 'pendiente' };
+        if (tipo === 'anadir') {
+          const n = texto(b.n, 60); if (!n) fallo(400, 'Ponle un nombre al objeto.');
+          pet.nuevo = { n, tipo: TIPOS_OBJ.includes(b.clase) ? b.clase : 'objeto', cant: entero(b.cant, 1, 9999, 1), nota: texto(b.nota, 140) };
+          pet.texto = 'Añadir ' + (pet.nuevo.cant > 1 ? pet.nuevo.cant + ' × ' : '') + n;
+        } else {
+          const ob = objeto();
+          pet.objeto = ob.id; pet.cant = tipo === 'usar' ? 1 : entero(b.cant, 1, ob.cant, 1);
+          const que = (pet.cant > 1 ? pet.cant + ' × ' : '') + ob.n;
+          if (tipo === 'dar') {
+            const a = d.personajes.find(x => x.id === b.a && x.tipo === 'pj' && x.id !== p.id) || fallo(400, 'Elige a quién se lo das.');
+            pet.a = a.id; pet.texto = 'Dar ' + que + ' a ' + a.nombre;
+          } else pet.texto = (tipo === 'usar' ? 'Usar ' : 'Soltar ') + que;
+        }
+        if (directo) { tocados = aplicarPeticion(d, pet); }
+        else {
+          if (pendientes(d).filter(x => x.pj === p.id).length >= 10) fallo(429, 'Tienes muchas peticiones esperando al DM.');
+          d.peticiones.push(pet);
+        }
+      }
+      else fallo(400, 'Acción desconocida.');
+      tocados.forEach(marcar);
+      podarPeticiones(d);
+      guardarDatos(cc, d); avisarCambio(cc.id, d, tocados);
+      return json(res, 200, { ok: true });
+    }
+
     if (!esDm) fallo(403, 'Solo el DM puede cambiar la campaña.');
+    if (md[2] === 'peticion' && m === 'GET') { const d = leerDatos(c); return json(res, 200, { peticiones: pendientes(d), jugadores: d.jugadores || {}, parches: d.personajes.filter(p => p._tj).map(p => ({ id: p.id, campos: camposJugador(p) })) }); }
+    if (md[2] === 'peticion' && m === 'POST') {
+      const b = await leerCuerpo(req);
+      const cc = fresca(), d = leerDatos(cc);
+      const pet = pendientes(d).find(x => x.id === b.id) || fallo(409, 'Esa petición ya estaba resuelta.');
+      let tocados = [], aviso = '';
+      if (b.ok) { try { tocados = aplicarPeticion(d, pet); pet.estado = 'aprobada'; } catch (err) { if (!(err instanceof ErrorApi)) throw err; pet.estado = 'rechazada'; pet.motivo = aviso = err.message; } }
+      else pet.estado = 'rechazada';
+      pet.resuelta = Date.now();
+      const dueno = d.personajes.find(x => x.id === pet.pj);
+      podarPeticiones(d);
+      guardarDatos(cc, d); avisarCambio(cc.id, d, tocados.length ? tocados : dueno ? [dueno] : []);
+      return json(res, 200, { estado: pet.estado, aviso, parches: tocados.map(p => ({ id: p.id, campos: camposJugador(p) })), peticiones: pendientes(d) });
+    }
     if (md[2] === 'datos' && m === 'PUT') {
       const b = await leerCuerpo(req, 12 * 1024 * 1024);
-      if (Number(b.rev) !== c.rev) fallo(409, 'La campaña cambió en otra ventana. Recarga para ver la última versión.');
-      const d = validarDatos(b.datos);
-      const rev = c.rev + 1;
-      db.prepare('UPDATE campanas SET datos = ?, rev = ?, actualizada = ? WHERE id = ?').run(JSON.stringify(d), rev, Date.now(), c.id);
+      const cc = fresca();
+      if (Number(b.rev) !== cc.rev) fallo(409, 'La campaña cambió en otra ventana. Recarga para ver la última versión.');
+      const d = validarDatos(b.datos), antes = leerDatos(cc);
+      // Lo que es de los jugadores no se pisa con una copia que no lo había visto.
+      d.jugadores = antes.jugadores || {}; d.peticiones = antes.peticiones || [];
+      const cambiados = [];
+      for (const p of d.personajes) {
+        const a = antes.personajes.find(x => x.id === p.id);
+        if (!a) continue;
+        if (a._tj && a._tj !== p._tj) for (const k of CAMPOS_JUGADOR) { if (a[k] === undefined) delete p[k]; else p[k] = a[k]; }
+        else if (p.tipo === 'pj' && ['pg', 'pgMax', 'ca', 'nivel', 'nombre', 'estado'].some(k => a[k] !== p[k])) cambiados.push(p);
+      }
+      for (const k of Object.keys(d.jugadores)) if (!d.personajes.some(p => p.id === d.jugadores[k] && p.tipo === 'pj')) delete d.jugadores[k];
+      const rev = guardarDatos(cc, d, true);
+      // También a las otras ventanas del DM: puede tener abierto el móvil de un personaje.
+      if (cambiados.length) difundir(cc.id, () => ({ pj: cambiados.map(p => p.id) }));
       return json(res, 200, { rev });
     }
     if (md[2] === 'img' && m === 'POST') {
@@ -459,7 +687,7 @@ async function api(req, res, ruta) {
         mapa[ref] = `api/campanas/${c.id}/img/${nombre}`;
       }
       const txt = JSON.stringify(b.estado, (k, v) => (typeof v === 'string' && mapa[v]) ? mapa[v] : v);
-      const d = validarDatos(JSON.parse(txt));
+      const d = validarDatos(JSON.parse(txt)); d.jugadores = {}; d.peticiones = [];
       const rev = c.rev + 1;
       db.prepare('UPDATE campanas SET datos = ?, rev = ?, actualizada = ?, sinopsis = CASE WHEN sinopsis = \'\' THEN ? ELSE sinopsis END WHERE id = ?')
         .run(JSON.stringify(d), rev, Date.now(), texto(d.campana && d.campana.sinopsis, 1200), c.id);
@@ -583,7 +811,7 @@ http.createServer(async (req, res) => {
   // Acepta las rutas con o sin el prefijo público (nginx puede quitarlo o no).
   if (BASE !== '/' && p.startsWith(BASE)) p = '/' + p.slice(BASE.length);
   try {
-    if (p.startsWith('/api/')) return await api(req, res, p.slice(5).replace(/\/$/, ''));
+    if (p.startsWith('/api/')) return await api(req, res, p.slice(5).replace(/\/$/, ''), url.searchParams);
     if (req.method !== 'GET' && req.method !== 'HEAD') fallo(405, 'Método no permitido.');
     return estatico(req, res, p.slice(1), url.searchParams.has("v"));
   } catch (e) {

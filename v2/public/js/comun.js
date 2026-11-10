@@ -50,7 +50,22 @@
     aviso: '<path d="M4 10v4h3l6 4V6l-6 4H4ZM16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11"/>',
     telon: '<path d="M3 4h18v3H3zM5 7v13M19 7v13M5 7c2 5 2 9 0 13M19 7c-2 5-2 9 0 13"/>',
     panel: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
-    punto: '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>'
+    punto: '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>',
+    arma: '<path d="M20 4l-1 5-9 9-3-3 9-9 4-2ZM5 13l6 6M7 17l-3 3"/>',
+    escudo: '<path d="M12 3 4 6v6c0 4.5 3.2 7.7 8 9 4.800-1.300 8-4.500 8-9V6l-8-3Z"/>',
+    armadura: '<path d="M8 3 4 5v5l2 1v9h12v-9l2-1V5l-4-2a4 4 0 0 1-8 0ZM6 15h12"/>',
+    pocion: '<path d="M10 3h4M10.5 3v5.200L6 16a3.400 3.400 0 0 0 3 5h6a3.400 3.400 0 0 0 3-5l-4.500-7.800V3M7.600 14h8.800"/>',
+    frasco: '<path stroke-dasharray="2.5 2.5" d="M10 3h4M10.5 3v5.200L6 16a3.400 3.400 0 0 0 3 5h6a3.400 3.400 0 0 0 3-5l-4.500-7.800V3"/>',
+    pergamino: '<path d="M6 4h10a2 2 0 0 1 2 2v12a2 2 0 0 0 2 2H8a2 2 0 0 1-2-2V4ZM9 9h6M9 13h6"/>',
+    comida: '<path d="M5 11h14a7 7 0 0 1-14 0ZM9 7c0-1.500 1-1.500 1-3M14 7c0-1.500 1-1.500 1-3M8 20h8"/>',
+    herramienta: '<path d="M14.5 5.500a4 4 0 0 0 5 5L11 19a2.100 2.100 0 0 1-3-3l8.500-8.500"/>',
+    tesoro: '<circle cx="9" cy="9" r="5"/><path d="M14.5 10.200A5 5 0 1 1 10.200 14.500M9 7v4"/>',
+    objeto: '<path d="M4 8l8-4 8 4v8l-8 4-8-4V8ZM4 8l8 4 8-4M12 12v8"/>',
+    mochila: '<path d="M7 9a5 5 0 0 1 10 0v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9ZM9.500 5V4a2.500 2.500 0 0 1 5 0v1M9 13h6v3H9z"/>',
+    corazon: '<path d="M12 20s-7-4.400-7-10a4 4 0 0 1 7-2.500A4 4 0 0 1 19 10c0 5.600-7 10-7 10Z"/>',
+    movil: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>',
+    hecho: '<path d="M5 12.500l4.500 4.500L19 7.500"/>',
+    dar: '<path d="M4 12h12M12 8l4 4-4 4M20 5v14"/>'
   };
   F.icono = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n] || ''}</svg>`;
   function pintarIconoTema(b) {
@@ -223,5 +238,17 @@
     dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
     return dlg;
   };
+  /* Canal en vivo de la campaña: el servidor avisa de lo que cambian los demás. */
+  F.enVivo = (campana, alRecibir) => {
+    if (!('EventSource' in window)) return null;
+    const es = new EventSource('api/campanas/' + encodeURIComponent(campana) + '/vivo');
+    let caido = false;
+    es.onmessage = ev => { let d; try { d = JSON.parse(ev.data); } catch { return; } alRecibir(d); };
+    es.onerror = () => { caido = true; };
+    es.onopen = () => { if (caido) { caido = false; alRecibir({ reconectado: true }); } };
+    addEventListener('pagehide', () => es.close());
+    return es;
+  };
+  F.hace = ms => { const s = Math.max(0, Math.round((Date.now() - ms) / 1000)); return s < 60 ? 'ahora' : s < 3600 ? `hace ${Math.round(s / 60)} min` : `hace ${Math.round(s / 3600)} h`; };
   F.fecha = ms => ms ? new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(ms)) : '';
 })();
