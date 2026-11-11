@@ -15,7 +15,6 @@
   <script src="js/reglas/bestiario.js"></script>
   <script src="js/ficha.js"></script>
   <script src="js/particulas.js"></script>
-  <script src="js/vivo.js"></script>
   <script src="js/peticiones.js"></script>
 </head>
 <body>
@@ -61,30 +60,6 @@
       <div data-cuerpo></div>
       <div class="hoja__pie" data-pie></div>
     </div>
-  </dialog>
-
-  <!-- Acontecimiento -->
-  <dialog class="hoja hoja--ancha" id="evento" aria-labelledby="evento-titulo">
-    <form class="hoja__in form" method="dialog" novalidate>
-      <div class="hoja__cab"><h2 id="evento-titulo">Nuevo acontecimiento</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
-      <div class="fila">
-        <div class="campo"><label for="ev-sesion">Sesión</label><input class="entrada" id="ev-sesion" name="sesion" type="number" min="1" max="999" required></div>
-        <div class="campo"><label for="ev-tipo">Tipo</label><select class="entrada" id="ev-tipo" name="tipo"></select></div>
-      </div>
-      <div class="campo"><label for="ev-sestit">Título de la sesión</label><input class="entrada" id="ev-sestit" name="sesionTitulo" maxlength="120"></div>
-      <div class="campo"><label for="ev-titulo">Título</label><input class="entrada" id="ev-titulo" name="titulo" required maxlength="140"></div>
-      <div class="campo"><label for="ev-lugar">Lugar</label><input class="entrada" id="ev-lugar" name="lugar" maxlength="140"></div>
-      <div class="campo"><label for="ev-texto">Qué pasó</label><textarea class="entrada" id="ev-texto" name="texto" maxlength="6000"></textarea></div>
-      <div class="retrato-carga">
-        <div class="ficha__retrato" data-ev-img></div>
-        <div class="campo"><label for="ev-img">Imagen <span class="suave">(opcional)</span></label><input class="entrada" id="ev-img" type="file" accept="image/*"><button class="boton boton--fantasma boton--chico" type="button" data-ev-quitar hidden>Quitar imagen</button></div>
-      </div>
-      <div class="campo"><label for="ev-cita">Cita <span class="suave">(opcional)</span></label><input class="entrada" id="ev-cita" name="cita" maxlength="240"></div>
-      <div class="campo"><span class="etq">Quién aparece</span><div class="selector-enlaces" data-enlaces></div></div>
-      <label class="casilla"><input type="checkbox" name="oculto"> Solo para el DM (los jugadores no lo ven)</label>
-      <p class="aviso" role="alert"></p>
-      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Guardar</button></div>
-    </form>
   </dialog>
 
   <!-- Editar personaje -->

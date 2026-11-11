@@ -20,6 +20,7 @@
   <script src="js/tablero.js"></script>
   <script src="js/vivo.js"></script>
   <script src="js/peticiones.js"></script>
+  <script src="js/cronica.js"></script>
 </head>
 <body class="pag-consola">
   <header class="barra">
@@ -34,59 +35,61 @@
   </header>
 
   <main class="envoltura consola">
-    <header class="consola__cab">
-      <div>
-        <a class="miga" href="campanas.html" data-miga>Campaña</a>
-        <h1>Mesa <span class="gotica">y proyección</span></h1>
-      </div>
-      <span class="suave consola__guardado" data-guardado aria-live="polite"></span>
-    </header>
-
     <div class="consola__cuerpo">
       <aside class="consola__vivo" aria-label="Proyector">
         <div class="vivo-caja"><div data-tablero></div></div>
         <div class="vivo-modos" role="group" aria-label="Qué se proyecta" data-modos></div>
         <div class="vivo-extra" data-modo-extra></div>
         <button class="boton boton--primario" type="button" data-proyector></button>
-
-        <form class="aviso-form" data-aviso>
-          <h2 class="consola__tit">Avisar a la mesa</h2>
-          <input class="entrada entrada--chica" name="quien" list="dl-quien" placeholder="Quién" maxlength="60" aria-label="Quién" autocomplete="off">
-          <datalist id="dl-quien"></datalist>
-          <input class="entrada entrada--chica" name="que" list="dl-que" placeholder="Qué hace: Bola de fuego, espadazo…" maxlength="80" aria-label="Qué hace" autocomplete="off">
-          <datalist id="dl-que"></datalist>
-          <input class="entrada entrada--chica" name="nota" placeholder="Daño o efecto (opcional)" maxlength="80" aria-label="Daño o efecto" autocomplete="off">
-          <div class="aviso-form__res">
-            <button class="boton boton--chico res res--acierta" type="submit" value="acierta">Acierta</button>
-            <button class="boton boton--chico res res--falla" type="submit" value="falla">Falla</button>
-            <button class="boton boton--chico res res--critico" type="submit" value="critico">Crítico</button>
-            <button class="boton boton--chico boton--secundario" type="submit" value="neutro">Solo avisar</button>
-          </div>
-        </form>
+        <div class="notas-dm">
+          <div class="notas-dm__cab"><h2 class="consola__tit">Notas rápidas</h2><button class="boton boton--fantasma boton--chico" type="button" data-notas-borrar>Borrar</button></div>
+          <textarea class="entrada notas-dm__txt" data-notas-dm maxlength="4000" placeholder="Iniciativas, PG de un enemigo, un nombre que se te ocurrió… Es solo para esta sesión: no se guarda en la campaña." aria-label="Notas rápidas del DM"></textarea>
+        </div>
       </aside>
 
       <section class="consola__panel">
+        <header class="consola__cab">
+          <div>
+            <a class="miga" href="campanas.html" data-miga>Campaña</a>
+            <h1>Mesa <span class="gotica">y proyección</span></h1>
+          </div>
+          <span class="suave consola__guardado" data-guardado aria-live="polite"></span>
+        </header>
         <section class="pets" data-pets aria-label="Peticiones de los jugadores" hidden></section>
         <div class="consola__vistas" role="tablist" aria-label="Secciones de la mesa" data-vistas></div>
         <div class="consola__vista" data-vista aria-live="polite"></div>
+        <div class="consola__vista" data-vista-cronica hidden></div>
       </section>
     </div>
   </main>
 
-  <dialog class="hoja" id="anadir-dlg" aria-labelledby="an-titulo">
+  <dialog class="hoja hoja--ancha" id="anadir-dlg" aria-labelledby="an-titulo">
     <div class="hoja__in form">
       <div class="hoja__cab"><h2 id="an-titulo">Añadir a la escena</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
       <div class="segmento" role="group" aria-label="Tipo" data-an-tipos></div>
       <input class="entrada" type="search" placeholder="Buscar por nombre o rol" aria-label="Buscar" data-an-buscar>
       <div class="an-lista" data-an-lista></div>
-      <div class="an-bestia">
-        <h3 class="consola__tit">Del bestiario</h3>
-        <div class="an-bestia__fila">
-          <select class="entrada" aria-label="Criatura" data-an-criatura></select>
-          <input class="entrada" type="number" min="1" max="12" value="1" aria-label="Cuántos" data-an-cuantos>
-          <button class="boton boton--secundario" type="button" data-an-bestia>Añadir</button>
+      <form class="an-forjar form" data-an-forjar hidden novalidate>
+        <div class="fila">
+          <div class="campo"><label for="fj-nombre">Nombre <span class="suave">(vacío = al azar)</span></label><input class="entrada" id="fj-nombre" name="nombre" maxlength="80" autocomplete="off"></div>
+          <div class="campo"><label for="fj-sexo">Sexo</label><select class="entrada" id="fj-sexo" name="sexo"><option value="azar">Al azar</option><option value="m">Hombre</option><option value="f">Mujer</option></select></div>
         </div>
-      </div>
+        <div class="fila">
+          <div class="campo"><label for="fj-tipo">Tipo</label><select class="entrada" id="fj-tipo" name="tipo"><option value="npc">NPC</option><option value="enemigo">Enemigo</option><option value="pj">PJ</option></select></div>
+          <div class="campo"><label for="fj-nivel">Nivel</label><input class="entrada" id="fj-nivel" name="nivel" type="number" min="1" max="20" value="1"></div>
+        </div>
+        <div class="fila">
+          <div class="campo"><label for="fj-raza">Especie</label><select class="entrada" id="fj-raza" name="raza"></select></div>
+          <div class="campo"><label for="fj-clase">Clase</label><select class="entrada" id="fj-clase" name="clase"></select></div>
+        </div>
+        <div class="fila">
+          <div class="campo"><label for="fj-tras">Trasfondo</label><select class="entrada" id="fj-tras" name="trasfondo"></select></div>
+          <div class="campo"><label for="fj-alin">Alineamiento</label><select class="entrada" id="fj-alin" name="alineamiento"></select></div>
+        </div>
+        <div class="campo"><label for="fj-rol">Rol en la historia <span class="suave">(opcional)</span></label><input class="entrada" id="fj-rol" name="rol" maxlength="140" placeholder="Tabernero que sabe demasiado"></div>
+        <button class="boton boton--primario" type="submit">Forjar</button>
+      </form>
+      <div class="an-previa" data-an-previa hidden></div>
       <div class="hoja__pie"><button class="boton boton--primario" type="button" data-cerrar-texto>Listo</button></div>
     </div>
   </dialog>
@@ -116,6 +119,76 @@
       </div>
       <p class="aviso" role="alert"></p>
       <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Guardar</button></div>
+    </form>
+  </dialog>
+
+  <!-- Acontecimiento -->
+  <dialog class="hoja hoja--ancha" id="evento" aria-labelledby="evento-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab"><h2 id="evento-titulo">Nuevo acontecimiento</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div class="fila">
+        <div class="campo"><label for="ev-sesion">Sesión</label><input class="entrada" id="ev-sesion" name="sesion" type="number" min="1" max="999" required></div>
+        <div class="campo"><label for="ev-tipo">Tipo</label><select class="entrada" id="ev-tipo" name="tipo"></select></div>
+      </div>
+      <div class="campo"><label for="ev-sestit">Título de la sesión</label><input class="entrada" id="ev-sestit" name="sesionTitulo" maxlength="120"></div>
+      <div class="campo"><label for="ev-titulo">Título</label><input class="entrada" id="ev-titulo" name="titulo" required maxlength="140"></div>
+      <div class="campo"><label for="ev-lugar">Lugar</label><input class="entrada" id="ev-lugar" name="lugar" maxlength="140"></div>
+      <div class="campo"><label for="ev-texto">Qué pasó</label><textarea class="entrada" id="ev-texto" name="texto" maxlength="6000"></textarea></div>
+      <div class="retrato-carga">
+        <div class="ficha__retrato" data-ev-img></div>
+        <div class="campo"><label for="ev-img">Imagen <span class="suave">(opcional)</span></label><input class="entrada" id="ev-img" type="file" accept="image/*"><button class="boton boton--fantasma boton--chico" type="button" data-ev-quitar hidden>Quitar imagen</button></div>
+      </div>
+      <div class="campo"><label for="ev-cita">Cita <span class="suave">(opcional)</span></label><input class="entrada" id="ev-cita" name="cita" maxlength="240"></div>
+      <div class="campo"><span class="etq">Quién aparece</span><div class="selector-enlaces" data-enlaces></div></div>
+      <label class="casilla"><input type="checkbox" name="oculto"> Solo para el DM (los jugadores no lo ven)</label>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Guardar</button></div>
+    </form>
+  </dialog>
+
+
+  <!-- Ventanas internas: el móvil de un jugador y el editor de mapas -->
+  <dialog class="ventana ventana--movil" id="movil-dlg" aria-label="Móvil del jugador">
+    <div class="ventana__cab"><b data-ventana-tit>Móvil</b><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+    <div class="ventana__marco"><iframe title="Vista del móvil del jugador" data-ventana-marco></iframe></div>
+  </dialog>
+  <dialog class="ventana ventana--editor" id="editor-dlg" aria-label="Editor de mapas">
+    <div class="ventana__marco"><iframe title="Editor de mapas" data-ventana-marco></iframe></div>
+  </dialog>
+
+  <!-- Forja de utilidades -->
+  <dialog class="hoja" id="objeto-dlg" aria-labelledby="fo-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab"><h2 id="fo-titulo">Nuevo objeto</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div class="campo"><label for="fo-n">Nombre</label><input class="entrada" id="fo-n" name="n" maxlength="60" required placeholder="Poción de fuerza" autocomplete="off"></div>
+      <div class="campo"><span class="etq">Tipo</span><div class="tipos-obj" role="group" aria-label="Tipo de objeto" data-fo-tipos></div></div>
+      <div class="campo"><label for="fo-nota">Descripción</label><textarea class="entrada" id="fo-nota" name="nota" maxlength="300" placeholder="Un líquido espeso que huele a hierro."></textarea></div>
+      <div class="campo"><span class="etq">Qué hace al usarlo</span><div class="segmento" role="group" aria-label="Efecto" data-fo-efectos></div></div>
+      <div class="fila" data-fo-campos="curar"><div class="campo"><label for="fo-dados">Cura</label><input class="entrada" id="fo-dados" name="dados" maxlength="12" placeholder="2d4+2"><span class="ayuda">Dados (2d4+2) o un número fijo.</span></div></div>
+      <div class="fila" data-fo-campos="bono">
+        <div class="campo" data-fo-atr><label for="fo-atr">Atributo</label><select class="entrada" id="fo-atr" name="atr"><option value="fue">Fuerza</option><option value="des">Destreza</option><option value="con">Constitución</option><option value="int">Inteligencia</option><option value="sab">Sabiduría</option><option value="car">Carisma</option></select></div>
+        <div class="campo"><label for="fo-valor">Cuánto</label><input class="entrada" id="fo-valor" name="valor" type="number" min="-10" max="10" value="2"></div>
+        <div class="campo"><label for="fo-turnos">Turnos</label><input class="entrada" id="fo-turnos" name="turnos" type="number" min="1" max="100" value="3"></div>
+      </div>
+      <label class="casilla" data-fo-consumible><input type="checkbox" name="consumible" checked> Se gasta al usarlo</label>
+      <div class="fila">
+        <div class="campo"><label for="fo-resto">Deja al gastarse <span class="suave">(opcional)</span></label><input class="entrada" id="fo-resto" name="resto" maxlength="40" placeholder="Frasco vacío"></div>
+        <div class="campo"><label for="fo-precio">Precio <span class="suave">(po, opcional)</span></label><input class="entrada" id="fo-precio" name="precio" type="number" min="0" max="999999"></div>
+      </div>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Guardar en la forja</button></div>
+    </form>
+  </dialog>
+  <dialog class="hoja" id="dar-dlg" aria-labelledby="dd-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab"><h2 id="dd-titulo">Dar objeto</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div data-dd-objeto></div>
+      <div class="fila">
+        <div class="campo"><label for="dd-pj">A quién</label><select class="entrada" id="dd-pj" name="pj"></select></div>
+        <div class="campo"><label for="dd-cant">Cantidad</label><input class="entrada" id="dd-cant" name="cant" type="number" min="1" max="99" value="1"></div>
+      </div>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Dar</button></div>
     </form>
   </dialog>
 

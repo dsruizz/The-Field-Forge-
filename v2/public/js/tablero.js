@@ -12,13 +12,18 @@
   const FORMAS = { circulo: 'Círculo', cono: 'Cono', cuadrado: 'Cuadrado', linea: 'Línea' };
   const PLANTILLAS = { jefe: 'Jefe', npc: 'Personaje', lugar: 'Lugar o hallazgo' };
   const AMBIENTES = { llamas: 'Llamas', brasas: 'Brasas', niebla: 'Niebla de cueva', arcano: 'Destellos arcanos', lluvia: 'Lluvia', ninguno: 'Sin ambiente' };
-  const SALUD = [[0, 'Caído'], [.25, 'Malherido'], [.6, 'Herido'], [1.01, 'Sano']];
-  const salud = (pg, max) => { const f = max ? pg / max : 1; return pg <= 0 ? 'Caído' : SALUD.find(([lim]) => f <= lim)[1]; };
+  const salud = (pg, max) => F.salud(pg, max);
+  // Con aumento z solo se ve 100/z del mapa: el centro no puede acercarse al borde más de la mitad de eso.
+  const limitarVista = v => {
+    const z = Math.min(4, Math.max(1, Number(v && v.z) || 1)), m = 50 / z;
+    const lim = n => Math.min(100 - m, Math.max(m, Number.isFinite(Number(n)) ? Number(n) : 50));
+    return { z, x: lim(v && v.x), y: lim(v && v.y) };
+  };
 
   function montar(cont, { editable = false } = {}) {
     cont.classList.add('tablero');
-    cont.innerHTML = `<img class="tablero__fondo" alt="" hidden><div class="tablero__capa"></div><div class="tablero__leyenda" hidden></div><div class="tablero__grupo" hidden></div><div class="tablero__modo"></div><div class="tablero__sobre"></div><div class="tablero__telon" hidden></div>`;
-    const fondo = cont.querySelector('.tablero__fondo'), capa = cont.querySelector('.tablero__capa');
+    cont.innerHTML = `<div class="tablero__mundo"><img class="tablero__fondo" alt="" hidden><div class="tablero__capa"></div></div><div class="tablero__leyenda" hidden></div><div class="tablero__grupo" hidden></div><div class="tablero__modo"></div><div class="tablero__sobre"></div><div class="tablero__telon" hidden></div>`;
+    const mundo = cont.querySelector('.tablero__mundo'), fondo = cont.querySelector('.tablero__fondo'), capa = cont.querySelector('.tablero__capa');
     const cajaGrupo = cont.querySelector('.tablero__grupo'), sobre = cont.querySelector('.tablero__sobre'), telon = cont.querySelector('.tablero__telon');
     const leyenda = cont.querySelector('.tablero__leyenda'), capaModo = cont.querySelector('.tablero__modo');
     const nodos = new Map();   // id → { el, firma, particulas }
@@ -61,10 +66,18 @@
         }
       }
     }
+    /* Zoom del mapa: la vista guarda el aumento (z) y el punto que queda en el centro (x, y en % del mapa).
+       Todo lo que va encima del mapa se acerca con él, así las áreas y los puntos no se descolocan. */
+    function encuadrar(v) {
+      const z = limitarVista(v).z, x = limitarVista(v).x, y = limitarVista(v).y;
+      mundo.style.transform = z > 1 ? `scale(${z}) translate(${50 - x}%, ${50 - y}%)` : '';
+      cont.style.setProperty('--z', z);
+    }
     function pintar(escena) {
       const lista = (escena && escena.elementos) || [];
-      if (escena && escena.fondo) { if (fondo.getAttribute('src') !== escena.fondo) fondo.src = escena.fondo; fondo.hidden = false; fondo.dataset.ajuste = escena.ajuste || 'contain'; }
+      if (escena && escena.fondo) { if (fondo.getAttribute('src') !== escena.fondo) fondo.src = escena.fondo; fondo.hidden = false; }
       else { fondo.hidden = true; fondo.removeAttribute('src'); }
+      encuadrar(escena && escena.vista);
       // Los jugadores ven números seguidos: los puntos ocultos no cuentan.
       const puntos = lista.filter(d => d.tipo === 'punto' && d.visible !== false);
       numeros = new Map(puntos.map((d, i) => [d.id, i + 1]));
@@ -91,7 +104,7 @@
         ${F.ficha ? F.ficha.retrato(p, 'gp__retrato') : ''}
         <div class="gp__txt"><b>${e(p.nombre)}</b>${clase === 'mf' && p.linea ? `<em>${e(p.linea)}</em>` : ''}
           ${verPg !== 'no' ? `<span class="gp__barra" data-nivel="${f > .6 ? 'bien' : f > .25 ? 'medio' : 'mal'}"><i data-f="${Math.round(f * 100)}"></i></span>
-          <small>${verPg === 'numero' ? `${e(p.pg)} / ${e(p.pgMax)} PG` : salud(p.pg, p.pgMax)}</small>` : ''}
+          <small>${verPg === 'numero' && p.pg > 0 ? `${e(p.pg)} / ${e(p.pgMax)} PG` : salud(p.pg, p.pgMax)}</small>` : ''}
         </div>
         ${cfg.ca !== false && p.ca !== '' && p.ca !== undefined ? `<span class="gp__ca"><b>${e(p.ca)}</b><small>CA</small></span>` : ''}
       </div>`;
@@ -213,8 +226,8 @@
 
     const negro = si => { telon.hidden = !si; };
     const estado = s => { pintar(s.escena); grupo(s.grupo, s.cfg || s.pos); modo(s); presentar(s.presentacion); aviso(s.aviso); negro(s.modo === 'negro' || s.negro); };
-    return { pintar, grupo, modo, presentar, aviso, negro, estado, capa, nodo: idEl => (nodos.get(idEl) || {}).el, editable };
+    return { pintar, grupo, modo, presentar, aviso, negro, estado, capa, mundo, nodo: idEl => (nodos.get(idEl) || {}).el, editable };
   }
 
-  F.tablero = { montar, COLOR, EFECTOS, FORMAS, PLANTILLAS, AMBIENTES, salud };
+  F.tablero = { montar, limitarVista, COLOR, EFECTOS, FORMAS, PLANTILLAS, AMBIENTES, salud };
 })();

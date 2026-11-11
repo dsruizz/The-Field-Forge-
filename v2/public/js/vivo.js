@@ -9,7 +9,7 @@
 (() => {
   const F = window.Forja;
   const uid = p => p + '_' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
-  const MODOS = { portada: 'Portada', cronica: 'Crónica', mapa: 'Mapa', fichas: 'En escena', negro: 'Negro' };
+  const MODOS = { portada: 'Portada', cronica: 'Crónica', mapa: 'Mapa', fichas: 'Escena', negro: 'Telón' };
 
   const escenaNueva = (nombre, fondo) => ({ id: uid('esc'), nombre, fondo: fondo || '', ajuste: 'contain', elementos: [] });
   /* Deja datos.mesa completo. La primera vez crea una escena por cada mapa que ya tuviera la campaña. */
@@ -20,7 +20,7 @@
     }
     const m = datos.mesa;
     m.presentaciones = m.presentaciones || []; m.enEscena = (m.enEscena || []).filter(idp => datos.personajes.some(p => p.id === idp));
-    m.ocultos = m.ocultos || []; m.turno = m.turno || '';
+    m.ocultos = m.ocultos || []; m.turno = m.turno || ''; m.forja = Array.isArray(m.forja) ? m.forja : null;
     m.grupoCfg = { pos: m.grupoPos || 'derecha', pg: true, ca: true, enemigos: 'estado', ...(m.grupoCfg || {}) };
     delete m.grupoPos;
     if (!m.escenas.some(x => x.id === m.actual)) m.actual = m.escenas[0].id;
@@ -38,7 +38,7 @@
     function grupo() {
       const d = datos(), m = d.mesa;
       return m.enEscena.map(pj).filter(Boolean).filter(p => !m.ocultos.includes(p.id)).map(p => ({
-        id: p.id, nombre: p.nombre, img: p.img || '', tipo: p.tipo, pg: p.pg ?? p.pgMax ?? 0, pgMax: p.pgMax || 0, ca: p.ca ?? '',
+        id: p.id, nombre: p.nombre, img: p.img || '', tipo: p.tipo, pg: p.pg ?? p.pgMax ?? 0, pgMax: p.pgMax || 0, ca: p.ca === undefined || p.ca === '' ? '' : Number(p.ca) + (p.efectos || []).filter(x => x.atr === 'ca').reduce((t, x) => t + x.valor, 0),
         linea: F.ficha ? F.ficha.linea(p) : '', turno: m.turno === p.id
       }));
     }
@@ -72,7 +72,17 @@
     }
     let cuadro = 0;
     const arrastre = esc => { if (!canal || cuadro || escenaFija) return; cuadro = requestAnimationFrame(() => { cuadro = 0; canal.postMessage({ parcial: true, escena: publica(esc) }); }); };
-    if (canal) canal.onmessage = ev => { if (ev.data === 'hola') emitir(); };
+    // El proyector avisa de que sigue abierto; así el botón sabe si toca abrirlo o cerrarlo.
+    let visto = 0, ventana = null;
+    const alProy = [];
+    const avisarProy = () => alProy.forEach(f => f(abierto()));
+    const abierto = () => (ventana && !ventana.closed) || Date.now() - visto < 5000;
+    if (canal) canal.onmessage = ev => {
+      if (ev.data === 'hola') { visto = Date.now(); emitir(); avisarProy(); }
+      else if (ev.data === 'proy:vivo') { const antes = abierto(); visto = Date.now(); if (!antes) avisarProy(); }
+      else if (ev.data === 'proy:adios') { visto = 0; setTimeout(avisarProy, 50); }
+    };
+    setInterval(() => { if (!abierto() && visto) { visto = 0; avisarProy(); } }, 2500);
     // Otra pestaña del DM (mesa, editor o crónica) cambió el control: se sigue el cambio.
     addEventListener('storage', ev => { if (ev.key === CTL && ev.newValue) { try { ctl = { ...ctl, ...JSON.parse(ev.newValue) }; oyentes.forEach(f => f(estado())); } catch { /* ignorar */ } } });
 
@@ -86,9 +96,17 @@
       alCambiar(f) { oyentes.push(f); },
       abrirProyector() {
         const v = window.open('proyector.html?id=' + encodeURIComponent(id), 'forja-proyector-' + id, 'popup,width=1280,height=720');
-        if (!v) F.toast('El navegador bloqueó la ventana. Permite las ventanas emergentes para este sitio.');
+        if (!v) return F.toast('El navegador bloqueó la ventana. Permite las ventanas emergentes para este sitio.');
+        ventana = v; visto = Date.now(); avisarProy();
         setTimeout(emitir, 700);
-      }
+      },
+      cerrarProyector() {
+        canal && canal.postMessage('proy:cerrar');
+        try { if (ventana) ventana.close(); } catch { /* ya cerrada */ }
+        ventana = null; visto = 0; setTimeout(avisarProy, 100);
+      },
+      proyectorAbierto: abierto,
+      alProyector(f) { alProy.push(f); }
     };
   }
 

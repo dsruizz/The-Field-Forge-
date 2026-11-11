@@ -18,8 +18,14 @@
     resumen = a.campana; datos = b.datos; rev = b.rev;
   } catch { location.replace('campanas.html'); return; }
   document.title = 'Escena · ' + resumen.nombre;
-  $('[data-volver]').href = 'mesa.html?id=' + encodeURIComponent(id) + '&ver=escenas';
+  $('[data-volver]').href = 'mesa.html?id=' + encodeURIComponent(id) + '&ver=mapas';
   $('[data-volver]').innerHTML = F.icono('atras');
+  // Dentro de la mesa el editor vive en una ventana: volver la cierra en lugar de navegar.
+  const embebido = params.get('embed') === '1' && window.parent !== window;
+  if (embebido) {
+    document.body.classList.add('is-embed');
+    $('[data-volver]').addEventListener('click', ev => { ev.preventDefault(); window.parent.postMessage('forja:cerrar-editor', location.origin); });
+  }
 
   /* ---------- Estado ---------- */
   const escenaNueva = F.vivo.escenaNueva;
@@ -29,7 +35,7 @@
   let sel = null, hist = [];
   const enProyector = () => mesa.actual === escena.id && vivo.ctl.modo === 'mapa' && !vivo.ctl.negro;
 
-  const tabEl = $('[data-tablero]');
+  const tabEl = $('[data-tablero]'), zonaRect = () => tab.mundo.getBoundingClientRect();
   const tab = T.montar(tabEl, { editable: true });
   tabEl.classList.add('tablero--edit');
   const caja = document.createElement('div');
@@ -61,6 +67,12 @@
     if (sucio) programar();
   }
   addEventListener('pagehide', () => { if (sucio) guardar(); });
+  // La mesa lo llama antes de cerrar la ventana del editor, para recargar con todo guardado.
+  F.guardarYa = async () => {
+    clearTimeout(reloj);
+    while (guardando) await new Promise(ok => setTimeout(ok, 80));
+    if (sucio) await guardar();
+  };
 
   /* ---------- Emisión al proyector ---------- */
   const emitir = () => { vivo.emitir(); };
@@ -87,7 +99,11 @@
     caja.style.transform = `translate(-50%, -50%) rotate(${d.rot || 0}deg)`;
     caja.classList.toggle('is-bloq', !!d.bloq);
   }
-  function lienzo() { tab.pintar(escena); pintarSel(); }
+  function lienzo() {
+    tab.pintar(escena); pintarSel();
+    $('[data-subir-vacio]').hidden = !!escena.fondo;
+    $('[data-zoom-val]').textContent = Math.round(T.limitarVista(escena.vista).z * 100) + '%';
+  }
   function todo() { lienzo(); pintarBarra(); pintarDock(); emitir(); }
   new ResizeObserver(pintarSel).observe(tabEl);
 
@@ -101,10 +117,12 @@
     $('[data-pista]').textContent = viva ? '' : 'Estás preparando: esta escena no está en el proyector.';
     const u = new URL(location.href); u.searchParams.set('escena', escena.id); history.replaceState(null, '', u);
   }
-  $('[data-herramientas]').innerHTML = [['fondo', 'mapa', 'Mapa'], ['imagen', 'imagen', 'Imagen'], ['texto', 'texto', 'Texto'], ['punto', 'punto', 'Punto'], ['area', 'area', 'Área'], ['efecto', 'fuego', 'Efecto']]
-    .map(([k, ic, t]) => `<button class="herr" type="button" data-anadir="${k}" title="${k === 'fondo' ? 'Cambiar el mapa de fondo' : 'Añadir ' + t.toLowerCase()}">${F.icono(ic)}<span>${t}</span></button>`).join('')
+  $('[data-herramientas]').innerHTML = [['imagen', 'imagen', 'Imagen'], ['texto', 'texto', 'Texto'], ['punto', 'punto', 'Punto'], ['area', 'area', 'Área'], ['efecto', 'fuego', 'Efecto']]
+    .map(([k, ic, t]) => `<button class="herr" type="button" data-anadir="${k}" title="Añadir ${t.toLowerCase()}">${F.icono(ic)}<span>${t}</span></button>`).join('')
     + `<i class="mbar__sep"></i><button class="herr herr--icono" type="button" data-deshacer title="Deshacer (Ctrl+Z)" aria-label="Deshacer">${F.icono('deshacer')}</button>`;
-  $('[data-proyector]').innerHTML = F.icono('mesa') + '<span>Abrir proyector</span>';
+  $('[data-subir-vacio]').innerHTML = F.icono('mapa') + '<b>Subir mapa</b><span>JPG, PNG o WebP. Luego podrás recortarlo y girarlo.</span>';
+  $('[data-rc="izq"]').innerHTML = F.icono('giraizq') + 'Girar a la izquierda';
+  $('[data-rc="der"]').innerHTML = F.icono('girader') + 'Girar a la derecha';
   $('[data-panel]').innerHTML = F.icono('panel');
   vivo.alCambiar(pintarBarra);
 
@@ -123,11 +141,13 @@
       return `
         <h3 class="dock__tit">Escena</h3>
         <label class="prop"><span>Nombre</span><input class="entrada entrada--chica" data-escena-prop="nombre" value="${e(escena.nombre)}" maxlength="60"></label>
-        <label class="prop"><span>Mapa</span><select class="entrada entrada--chica" data-escena-prop="ajuste"><option value="contain"${escena.ajuste !== 'cover' ? ' selected' : ''}>Entero</option><option value="cover"${escena.ajuste === 'cover' ? ' selected' : ''}>Llenar la pantalla</option></select></label>
-        <div class="fila-btn">
-          <button class="boton boton--secundario boton--chico" type="button" data-anadir="fondo">${F.icono('mapa')}${escena.fondo ? 'Cambiar mapa' : 'Subir mapa'}</button>
-          ${escena.fondo ? `<button class="boton boton--fantasma boton--chico" type="button" data-quitar-fondo>Quitar</button>` : ''}
+        <div class="dock__mapa">
+          <button class="boton boton--primario" type="button" data-anadir="fondo">${F.icono('mapa')}${escena.fondo ? 'Cambiar mapa' : 'Subir mapa'}</button>
+          ${escena.fondo ? `<div class="fila-btn">
+            <button class="boton boton--secundario boton--chico" type="button" data-recortar>${F.icono('recortar')}Recortar o girar</button>
+            <button class="boton boton--fantasma boton--chico" type="button" data-quitar-fondo>Quitar</button></div>` : ''}
         </div>
+        ${escena.fondo ? `<p class="dock__ayuda suave">Zoom: rueda del ratón o los botones de arriba; arrastra el mapa vacío para moverte. El proyector ve el mismo encuadre.</p>` : ''}
         <label class="casilla"><input type="checkbox" data-escena-prop="leyenda"${escena.leyenda !== false ? ' checked' : ''}> Mostrar la leyenda de puntos de interés</label>
         <div class="fila-btn">
           <button class="boton boton--fantasma boton--chico" type="button" data-duplicar-escena>${F.icono('duplicar')}Duplicar</button>
@@ -188,10 +208,8 @@
     if (!f) return;
     marca('Subiendo imagen…');
     try {
-      if (destino === 'fondo') {
-        const r = await F.subirImagen(id, f, 2560, 'image/jpeg');
-        escena.fondo = r.url; todo(); programar();
-      } else {
+      if (destino === 'fondo') { marca(''); return abrirRecorte(f); }
+      {
         const r = await F.subirImagen(id, f, 1400, 'image/webp'), d = destino === 'reemplazar' && elSel();
         if (d) { recordar(); d.src = r.url; d.h = d.w * (r.alto / r.ancho) * R; todo(); programar(); }
         else anadir(base('imagen', { src: r.url, marco: 'ninguno', w: 28, h: 28 * (r.alto / r.ancho) * R }));
@@ -235,12 +253,44 @@
       if (!elSel().bloq) arrastre('mover', null, ev);
       return;
     }
-    if (sel) { sel = null; pintarSel(); pintarDock(); }
+    // Fondo vacío: si hay zoom, arrastrar mueve el encuadre; un clic sin arrastrar quita la selección.
+    const v0 = T.limitarVista(escena.vista), tr = tabEl.getBoundingClientRect();
+    let movido = false;
+    const mover = m => {
+      const dx = m.clientX - ev.clientX, dy = m.clientY - ev.clientY;
+      if (!movido && Math.hypot(dx, dy) < 4) return;
+      movido = true;
+      if (v0.z <= 1) return;
+      escena.vista = T.limitarVista({ z: v0.z, x: v0.x - dx / tr.width * 100 / v0.z, y: v0.y - dy / tr.height * 100 / v0.z });
+      tabEl.classList.add('is-moviendo'); lienzo(); emitirArrastre();
+    };
+    const soltar = () => {
+      removeEventListener('pointermove', mover); tabEl.classList.remove('is-moviendo');
+      if (movido && v0.z > 1) { emitir(); programar(); }
+      else if (!movido && sel) { sel = null; pintarSel(); pintarDock(); }
+    };
+    addEventListener('pointermove', mover);
+    addEventListener('pointerup', soltar, { once: true });
+    addEventListener('pointercancel', soltar, { once: true });
   });
+
+  /* ---------- Zoom ---------- */
+  // Acerca o aleja dejando quieto el punto del mapa que está bajo el cursor (o el centro, con los botones).
+  function zoom(factor, cx, cy) {
+    const v = T.limitarVista(escena.vista), tr = tabEl.getBoundingClientRect(), mr = zonaRect();
+    if (cx === undefined) { cx = tr.left + tr.width / 2; cy = tr.top + tr.height / 2; }
+    const z = Math.min(4, Math.max(1, v.z * factor));
+    const px = (cx - mr.left) / mr.width * 100, py = (cy - mr.top) / mr.height * 100;
+    const nv = T.limitarVista({ z, x: px - ((cx - tr.left) / tr.width - .5) * 100 / z, y: py - ((cy - tr.top) / tr.height - .5) * 100 / z });
+    escena.vista = nv.z > 1 ? nv : null;
+    lienzo(); emitirArrastre(); programar();
+    clearTimeout(zoom.t); zoom.t = setTimeout(emitir, 250);
+  }
+  tabEl.addEventListener('wheel', ev => { ev.preventDefault(); zoom(Math.exp(-ev.deltaY * .0015), ev.clientX, ev.clientY); }, { passive: false });
   function arrastre(modo, asa, ev) {
     ev.preventDefault();
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
-    const d = elSel(), r = tabEl.getBoundingClientRect(), ini = { ...d };
+    const d = elSel(), r = zonaRect(), ini = { ...d };
     const cx = r.left + d.x / 100 * r.width, cy = r.top + d.y / 100 * r.height;
     const dist0 = Math.hypot(ev.clientX - cx, ev.clientY - cy) || 1, ang0 = Math.atan2(ev.clientY - cy, ev.clientX - cx);
     let movido = false;
@@ -306,8 +356,8 @@
     else if ('nuevaEscena' in ds) { escena = escenaNueva('Escena ' + (mesa.escenas.length + 1)); mesa.escenas.push(escena); sel = null; hist = []; listaEsc.hidden = true; todo(); programar(); }
     else if (ds.anadir) anadirTipo(ds.anadir);
     else if ('deshacer' in ds) deshacer();
+    else if (ds.zoom) { const k = Number(ds.zoom); if (k) zoom(k > 0 ? 1.25 : 1 / 1.25); else { escena.vista = null; lienzo(); emitir(); programar(); } }
     else if ('vivo' in ds) { if (!enProyector()) { mesa.actual = escena.id; vivo.poner({ modo: 'mapa', negro: false }); pintarBarra(); programar(); } }
-    else if ('proyector' in ds) vivo.abrirProyector();
     else if ('panel' in ds) { const dock = $('[data-dock]'); dock.hidden = !dock.hidden; t.setAttribute('aria-pressed', String(!dock.hidden)); requestAnimationFrame(pintarSel); }
   });
 
@@ -333,7 +383,8 @@
     else if (ds.accion) accion(ds.accion);
     else if ('reemplazar' in ds) pedirArchivo('reemplazar');
     else if (ds.anadir) anadirTipo(ds.anadir);
-    else if ('quitarFondo' in ds) { escena.fondo = ''; todo(); programar(); }
+    else if ('quitarFondo' in ds) { escena.fondo = ''; escena.vista = null; todo(); programar(); }
+    else if ('recortar' in ds) abrirRecorte(escena.fondo);
     else if ('duplicarEscena' in ds) {
       const c = JSON.parse(JSON.stringify(escena)); c.id = uid('esc'); c.nombre = escena.nombre + ' (copia)'; c.elementos.forEach(x => { x.id = uid('el'); });
       mesa.escenas.push(c); escena = c; sel = null; hist = []; todo(); programar();
@@ -345,7 +396,89 @@
     }
   });
 
+  /* ---------- Recortar y girar el mapa ----------
+     Se trabaja sobre la imagen original en un lienzo; al aplicar se genera una imagen nueva y se sube.
+     El recorte se guarda en fracciones de la imagen ya girada (0 a 1), así no depende del tamaño en pantalla. */
+  const dlgRc = F.dialogo($('#recorte')), cvRc = $('[data-rc-lienzo]');
+  const rc = { img: null, giro: 0, r: null, archivo: null, cambiado: false };
+  const dimsGiradas = () => rc.giro % 180 ? [rc.img.naturalHeight, rc.img.naturalWidth] : [rc.img.naturalWidth, rc.img.naturalHeight];
+  function dibujarRc() {
+    const [W, H] = dimsGiradas(), caja = cvRc.parentElement, maxW = caja.clientWidth || 720, maxH = Math.min(innerHeight * .55, 520);
+    const k = Math.min(maxW / W, maxH / H);
+    cvRc.width = Math.round(W * k); cvRc.height = Math.round(H * k);
+    const c = cvRc.getContext('2d');
+    c.save(); c.translate(cvRc.width / 2, cvRc.height / 2); c.rotate(rc.giro * Math.PI / 180);
+    const iw = rc.img.naturalWidth * k, ih = rc.img.naturalHeight * k;
+    c.drawImage(rc.img, -iw / 2, -ih / 2, iw, ih); c.restore();
+    const { x, y, w, h } = rc.r, X = x * cvRc.width, Y = y * cvRc.height, Wr = w * cvRc.width, Hr = h * cvRc.height;
+    c.fillStyle = 'rgba(0,0,0,.6)';
+    c.fillRect(0, 0, cvRc.width, Y); c.fillRect(0, Y + Hr, cvRc.width, cvRc.height - Y - Hr);
+    c.fillRect(0, Y, X, Hr); c.fillRect(X + Wr, Y, cvRc.width - X - Wr, Hr);
+    c.strokeStyle = '#aad431'; c.lineWidth = 2; c.strokeRect(X + 1, Y + 1, Wr - 2, Hr - 2);
+  }
+  async function abrirRecorte(fuente) {
+    const img = new Image();
+    const url = fuente instanceof Blob ? URL.createObjectURL(fuente) : fuente;
+    try { await new Promise((ok, mal) => { img.onload = ok; img.onerror = mal; img.src = url; }); }
+    catch { return F.toast('No se pudo abrir la imagen.'); }
+    Object.assign(rc, { img, giro: 0, r: { x: 0, y: 0, w: 1, h: 1 }, archivo: fuente instanceof Blob ? fuente : null, cambiado: false });
+    dlgRc.showModal(); requestAnimationFrame(dibujarRc);
+  }
+  dlgRc.addEventListener('close', () => { if (rc.img && rc.img.src.startsWith('blob:')) URL.revokeObjectURL(rc.img.src); rc.img = null; });
+  const puntoRc = m => { const b = cvRc.getBoundingClientRect(); return { x: limitar((m.clientX - b.left) / b.width, 0, 1), y: limitar((m.clientY - b.top) / b.height, 0, 1) }; };
+  cvRc.addEventListener('pointerdown', ev => {
+    if (!rc.img) return;
+    ev.preventDefault();
+    const p0 = puntoRc(ev), r0 = { ...rc.r };
+    const dentro = p0.x > r0.x && p0.x < r0.x + r0.w && p0.y > r0.y && p0.y < r0.y + r0.h && (r0.w < 1 || r0.h < 1);
+    const mover = m => {
+      const p = puntoRc(m);
+      if (dentro) rc.r = { ...r0, x: limitar(r0.x + p.x - p0.x, 0, 1 - r0.w), y: limitar(r0.y + p.y - p0.y, 0, 1 - r0.h) };
+      else rc.r = { x: Math.min(p.x, p0.x), y: Math.min(p.y, p0.y), w: Math.max(.04, Math.abs(p.x - p0.x)), h: Math.max(.04, Math.abs(p.y - p0.y)) };
+      rc.r.w = Math.min(rc.r.w, 1 - rc.r.x); rc.r.h = Math.min(rc.r.h, 1 - rc.r.y);
+      rc.cambiado = true; dibujarRc();
+    };
+    const soltar = () => { cvRc.removeEventListener('pointermove', mover); };
+    cvRc.setPointerCapture(ev.pointerId);
+    cvRc.addEventListener('pointermove', mover);
+    cvRc.addEventListener('pointerup', soltar, { once: true });
+  });
+  dlgRc.addEventListener('click', async ev => {
+    const b = ev.target.closest('[data-rc]'); if (!b || !rc.img) return;
+    const a = b.dataset.rc;
+    if (a === 'izq' || a === 'der') { rc.giro = (rc.giro + (a === 'der' ? 90 : 270)) % 360; rc.r = { x: 0, y: 0, w: 1, h: 1 }; rc.cambiado = true; }
+    else if (a === 'todo') rc.r = { x: 0, y: 0, w: 1, h: 1 };
+    else if (a === '169') {
+      const [W, H] = dimsGiradas(), prop = W / H;
+      rc.r = prop > R ? { w: R / prop, h: 1, x: (1 - R / prop) / 2, y: 0 } : { w: 1, h: prop / R, x: 0, y: (1 - prop / R) / 2 };
+      rc.cambiado = true;
+    } else if (a === 'aplicar') return aplicarRecorte(b);
+    dibujarRc();
+  });
+  async function aplicarRecorte(b) {
+    b.disabled = true; marca('Subiendo mapa…');
+    try {
+      let url;
+      const entero = rc.r.x === 0 && rc.r.y === 0 && rc.r.w === 1 && rc.r.h === 1 && !rc.giro;
+      if (entero && rc.archivo) url = (await F.subirImagen(id, rc.archivo, 2560, 'image/jpeg')).url;
+      else if (entero) url = escena.fondo;
+      else {
+        const [W, H] = dimsGiradas(), sx = rc.r.x * W, sy = rc.r.y * H, sw = rc.r.w * W, sh = rc.r.h * H;
+        const k = Math.min(1, 2560 / Math.max(sw, sh)), out = document.createElement('canvas');
+        out.width = Math.max(1, Math.round(sw * k)); out.height = Math.max(1, Math.round(sh * k));
+        const c = out.getContext('2d');
+        // Se coloca la imagen girada de modo que la esquina del recorte quede en el origen.
+        c.scale(k, k); c.translate(-sx, -sy); c.translate(W / 2, H / 2); c.rotate(rc.giro * Math.PI / 180);
+        c.drawImage(rc.img, -rc.img.naturalWidth / 2, -rc.img.naturalHeight / 2);
+        const r = await F.api('campanas/' + encodeURIComponent(id) + '/img', { metodo: 'POST', datos: { img: out.toDataURL('image/jpeg', .88) } });
+        url = r.url;
+      }
+      escena.fondo = url; escena.vista = null; dlgRc.close(); todo(); programar();
+    } catch (err) { marca(''); F.toast('No se pudo subir el mapa: ' + err.message); }
+    b.disabled = false;
+  }
+
   todo();
   marca('');
-  if (!escena.fondo && !escena.elementos.length) $('[data-pista]').textContent = 'Empieza subiendo un mapa con «Mapa» y abre el proyector en la otra pantalla.';
+  if (!escena.fondo && !escena.elementos.length) $('[data-pista]').textContent = embebido ? '' : 'Empieza subiendo un mapa y proyecta la escena cuando esté lista.';
 })();

@@ -16,8 +16,11 @@
   try { aplicar(JSON.parse(localStorage.getItem(CLAVE))); } catch { /* sin estado guardado */ }
   if ('BroadcastChannel' in window) {
     const canal = new BroadcastChannel('forja-mesa-' + id);
-    canal.onmessage = ev => aplicar(ev.data);
+    canal.onmessage = ev => { if (ev.data === 'proy:cerrar') return window.close(); aplicar(ev.data); };
     canal.postMessage('hola');
+    // Latido: la mesa sabe que el proyector está abierto y puede cerrarlo.
+    setInterval(() => canal.postMessage('proy:vivo'), 2000);
+    addEventListener('pagehide', () => canal.postMessage('proy:adios'));
   }
   addEventListener('storage', ev => { if (ev.key === CLAVE && ev.newValue) { try { aplicar(JSON.parse(ev.newValue)); } catch { /* ignorar */ } } });
 

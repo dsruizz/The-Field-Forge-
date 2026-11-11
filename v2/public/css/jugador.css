@@ -4,6 +4,7 @@ body[data-acento="acido"] { --ac: var(--acido); --sobre-ac: var(--tinta); }
 body[data-acento="amarillo"] { --ac: var(--amarillo); --sobre-ac: var(--tinta); }
 body[data-acento="oxido"] { --ac: var(--oxido); --sobre-ac: var(--papel); }
 body[data-acento="pizarra"] { --ac: var(--pizarra); --sobre-ac: var(--papel); }
+.is-embed .jbarra__atras { visibility: hidden; }
 .pag-jugador { --ancho-j: 560px; padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
 
 .jbarra { position: sticky; top: 0; z-index: 30; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 4px; height: 52px; padding: 0 8px; background: var(--tinta); color: var(--papel); }
@@ -42,16 +43,12 @@ body[data-acento="pizarra"] { --ac: var(--pizarra); --sobre-ac: var(--papel); }
 .jvida__num span { font-size: 14px; font-weight: 600; color: var(--texto-2); }
 .jvida__num em { margin-left: auto; align-self: center; padding: 3px 10px; font: 700 12px var(--sans); font-style: normal; letter-spacing: .06em; text-transform: uppercase; background: var(--acido); color: var(--tinta); border: 2px solid var(--tinta); }
 .jvida[data-nivel="medio"] .jvida__num em { background: var(--amarillo); }
-.jvida[data-nivel="mal"] .jvida__num em { background: var(--oxido); color: var(--papel); }
+.jvida[data-nivel="mal"] .jvida__num em, .jvida[data-nivel="muerto"] .jvida__num em { background: var(--oxido); color: var(--papel); }
+.jvida[data-nivel="muerto"] .jvida__num b { color: var(--oxido); text-decoration: line-through; }
 .jvida__barra { height: 12px; background: var(--superficie-2); border: 2px solid var(--borde-duro); }
 .jvida__barra i { display: block; height: 100%; background: var(--acido); transition: width .3s ease; }
 .jvida[data-nivel="medio"] .jvida__barra i { background: var(--amarillo); }
 .jvida[data-nivel="mal"] .jvida__barra i { background: var(--oxido); }
-.jvida__mas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.jvida__mas button { min-height: 52px; border: 2px solid var(--borde-duro); border-radius: 6px; background: var(--superficie); color: var(--texto); font: 700 18px var(--sans); cursor: pointer; box-shadow: 3px 3px 0 var(--dura); transition: transform .08s, box-shadow .08s; touch-action: manipulation; }
-.jvida__mas button:nth-child(n+3) { background: var(--acido); color: var(--tinta); border-color: var(--tinta); }
-.jvida__mas button:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--dura); }
-
 .jvitales { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .jvitales div { padding: 8px 2px; text-align: center; background: var(--tinta); color: var(--papel); border-radius: 6px; }
 .jvitales b { display: block; font: 700 20px/1.1 var(--sans); color: var(--amarillo); }
@@ -150,3 +147,79 @@ body[data-acento="pizarra"] { --ac: var(--pizarra); --sobre-ac: var(--papel); }
 .jtabs button[aria-pressed="true"] { background: var(--amarillo); color: var(--tinta); }
 .jtabs i { position: absolute; top: 4px; left: calc(50% + 8px); min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center; border-radius: 99px; background: var(--oxido); color: var(--papel); font: 700 11px var(--sans); font-style: normal; }
 .pag-jugador .toast { bottom: calc(92px + env(safe-area-inset-bottom)); }
+
+/* Todo lo que define al personaje, dentro de la misma ficha */
+.jpanel { display: grid; gap: 10px; padding: 14px; border-radius: 6px; background: var(--superficie); color: var(--texto); border: 2px solid var(--tinta); }
+.jpanel .jsub { font-size: 12px; }
+.jpanel .jatr div { background: var(--fondo); }
+.jatr div.is-bono, .jvitales div.is-bono { box-shadow: inset 0 0 0 2px var(--amarillo); }
+.jatr div.is-bono b { color: var(--oxido); }
+.jvitales div.is-bono b { color: var(--acido); }
+.jsalv { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.jsalv div { display: grid; justify-items: center; padding: 6px 2px; border-radius: 6px; border: 2px dashed var(--linea); }
+.jsalv span { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--texto-2); }
+.jsalv b { font: 700 17px/1.2 var(--sans); }
+.jsalv div.is-comp { border: 2px solid var(--tinta); background: var(--acido); color: var(--tinta); }
+.jsalv div.is-comp span { color: var(--tinta); }
+.jhabs { border-top: 2px solid var(--linea); padding-top: 10px; }
+.jhabs summary { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; align-items: center; cursor: pointer; list-style: none; }
+.jhabs summary::-webkit-details-marker { display: none; }
+.jhabs__comp { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; gap: 6px; }
+.jhabs__comp i { font-style: normal; padding: 3px 9px; border-radius: 4px; background: var(--acido); color: var(--tinta); border: 1.5px solid var(--tinta); font-size: 12px; font-weight: 600; }
+.jhabs__ver { grid-column: 2; grid-row: 1; font-size: 12px; font-weight: 600; color: var(--enlace); }
+.jhabs[open] .jhabs__ver::after { content: " ▲"; }
+.jhabs:not([open]) .jhabs__ver::after { content: " ▼"; }
+.jhabs__lista { list-style: none; margin: 12px 0 6px; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 10px; }
+.jhabs__lista li { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 34px; padding: 0 8px; border-radius: 4px; background: var(--fondo); font-size: 13px; }
+.jhabs__lista li span { display: flex; align-items: baseline; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jhabs__lista small { font-size: 9px; font-weight: 700; letter-spacing: .06em; color: var(--texto-2); }
+.jhabs__lista b { font-variant-numeric: tabular-nums; }
+.jhabs__lista li.is-comp { background: var(--acido); color: var(--tinta); font-weight: 600; }
+.jhabs__lista li.is-comp small { color: var(--tinta); }
+.jhabs__lista li.is-pericia { box-shadow: inset 0 0 0 2px var(--tinta); }
+@media (max-width: 360px) { .jhabs__lista { grid-template-columns: 1fr; } }
+
+.jefectos { display: flex; flex-wrap: wrap; gap: 6px; }
+.jefecto { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: var(--tinta); color: var(--amarillo); border-radius: 4px; font-size: 12px; font-weight: 600; }
+.jefecto svg { width: 14px; height: 14px; }
+
+/* Plegables discretos: rasgos y cuaderno */
+.jplegable > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; border: 2px solid var(--borde-duro); border-radius: 6px; background: var(--superficie); cursor: pointer; list-style: none; }
+.jplegable > summary::-webkit-details-marker { display: none; }
+.jplegable > summary::after { content: "+"; margin-left: auto; font: 700 20px var(--sans); }
+.jplegable[open] > summary::after { content: "−"; }
+.jplegable[open] > summary { border-radius: 6px 6px 0 0; box-shadow: 4px 4px 0 var(--ac); }
+.jplegable > .rasgos { padding: 10px; border: 2px solid var(--borde-duro); border-top: 0; border-radius: 0 0 6px 6px; }
+.jplegable .rasgos details { border-width: 1px; }
+.jsub svg { width: 18px; height: 18px; }
+
+.jcuaderno__estado { margin-left: auto; font-size: 12px; color: var(--texto-2); }
+.jcuaderno__estado + * { margin-left: 0; }
+.jcuaderno > summary::after { margin-left: 10px; }
+.jcuaderno__hoja { position: relative; padding: 12px 12px 0; border: 2px solid var(--borde-duro); border-top: 0; background: var(--superficie); }
+.jcuaderno__txt { display: block; width: 100%; height: 300px; resize: none; overflow-y: auto; padding: 4px 6px 28px; border: 0; background: repeating-linear-gradient(transparent 0 29px, var(--linea) 29px 30px); background-attachment: local; color: var(--texto); font: 400 16px/30px var(--sans); }
+.jcuaderno__txt:focus { outline: none; }
+.jcuaderno__n { position: absolute; right: 14px; bottom: 8px; font: 700 11px var(--sans); letter-spacing: .08em; color: var(--texto-2); }
+.jcuaderno__nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 12px; border: 2px solid var(--borde-duro); border-top: 1px dashed var(--linea); border-radius: 0 0 6px 6px; background: var(--superficie); }
+.jcuaderno__nav .boton { border-radius: 6px; }
+.jcuaderno__sig svg { transform: scaleX(-1); }
+.jcuaderno__nav .empuja { margin-left: auto; }
+
+/* Gotero para un color propio */
+.jacentos__gotero { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 6px; border: 2px dashed var(--borde-duro); cursor: pointer; color: var(--texto); }
+.jacentos__gotero.is-on { border-style: solid; background: var(--ac); color: var(--sobre-ac); box-shadow: 4px 4px 0 var(--dura); transform: translate(-2px, -2px); }
+.jacentos__gotero svg { width: 22px; height: 22px; }
+.jacentos__gotero input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Conjuros: espacios de solo lectura y explicaciones más largas */
+.jesp__fila i { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--borde-duro); background: var(--ac); }
+.jesp__fila i.is-gastado { background: none; border-style: dashed; }
+.jconj-txt { display: grid; gap: 8px; padding-bottom: 12px; font-size: 14px; line-height: 1.55; }
+.jconj-txt p { padding: 0; color: var(--texto); }
+.jconj-res { font-size: 13px; color: var(--texto-2) !important; }
+
+/* Objetos con efecto */
+.ob--magico .ob__ico::after { content: ""; position: absolute; left: -5px; bottom: -5px; width: 14px; height: 14px; border-radius: 50%; background: var(--amarillo); border: 2px solid var(--tinta); }
+.ob-efecto { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: center; padding: 10px 12px; background: var(--tinta); color: var(--amarillo); border-radius: 6px; }
+.ob-efecto svg { width: 22px; height: 22px; }
+.ob-efecto small { display: block; color: var(--papel); font-size: 12px; }

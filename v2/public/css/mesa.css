@@ -9,7 +9,7 @@
 /* ---------- Tablero (compartido) ---------- */
 .tablero { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #0d0d0d; color: var(--papel); container-type: size; isolation: isolate; user-select: none; -webkit-user-select: none; }
 .tablero__fondo { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: contain; pointer-events: none; }
-.tablero__fondo[data-ajuste="cover"] { object-fit: cover; }
+.tablero__mundo { position: absolute; inset: 0; transform-origin: 50% 50%; }
 .tablero__capa { position: absolute; inset: 0; z-index: 1; }
 .tablero__sobre { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
 .tablero__telon { position: absolute; inset: 0; z-index: 20; background: #000; }
@@ -413,3 +413,107 @@ kbd { padding: 1px 5px; border-radius: 5px; border: 1px solid var(--linea); back
   .consola__cuerpo { grid-template-columns: minmax(0, 1fr); }
   .consola__vivo { position: static; }
 }
+
+/* ---------- Mesa, segunda versión: notas rápidas, pestañas con icono, turnos y grupos ---------- */
+.consola { padding-top: clamp(16px, 3vh, 28px); }
+.consola__cab { margin-bottom: 16px; }
+.consola__vivo [data-proyector].is-abierto { background: var(--superficie); color: var(--texto); border-color: var(--borde-duro); }
+.notas-dm { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--linea); }
+.notas-dm__cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.notas-dm__txt { min-height: 150px; resize: vertical; font-size: 14px; line-height: 1.45; }
+.consola__vistas button svg { width: 18px; height: 18px; flex: none; }
+.consola__vistas button:hover:not([aria-selected="true"]) { color: var(--texto); }
+.vista-intro { margin-bottom: 18px; font-size: 14px; max-width: 64ch; }
+
+.herramientas .turnos { display: inline-flex; gap: 8px; }
+.escena-grupo + .escena-grupo { margin-top: 30px; }
+.separador { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; font: 700 13px var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--texto-2); }
+.separador::after { content: ''; flex: 1; height: 2px; background: var(--linea); }
+.separador i { order: 2; font-style: normal; min-width: 24px; padding: 1px 7px; border: 1.5px solid var(--borde-duro); border-radius: 99px; color: var(--texto); font-size: 12px; text-align: center; letter-spacing: 0; }
+
+.ec__marco { position: relative; display: block; }
+.ec__orden-n { position: absolute; right: -7px; bottom: -7px; min-width: 20px; height: 20px; padding: 0 4px; display: grid; place-items: center; border: 1.5px solid var(--borde-duro); border-radius: 99px; background: var(--superficie); color: var(--texto-2); font: 700 11px/1 var(--sans); }
+.ec.is-turno .ec__orden-n { background: var(--amarillo); border-color: var(--tinta); color: var(--tinta); }
+.ec__ca.is-bono { background: var(--pizarra); }
+.ec__efectos { display: flex; flex-wrap: wrap; gap: 5px; }
+.ec__efectos span { padding: 3px 8px; border: 1.5px solid var(--pizarra); border-radius: 99px; font-size: 11.5px; font-weight: 600; color: var(--texto); }
+.ec.is-muerto { opacity: .7; box-shadow: 6px 6px 0 var(--dura); }
+.ec.is-muerto .ec__retrato { filter: grayscale(1) contrast(.8); }
+.ec.is-muerto .ec__pg p em { color: var(--oxido); }
+.ec__orden .herr:disabled { opacity: .3; }
+
+/* Mapas: la tarjeta de crear va primero y mide lo mismo que las demás */
+button.esc__img { width: 100%; padding: 0; border: 0; cursor: pointer; }
+button.esc__img:hover img { opacity: .85; }
+.esc--nueva { display: grid; place-content: center; justify-items: center; gap: 10px; min-height: 230px; border: 2px dashed var(--acido); box-shadow: none; background: none; color: var(--texto); font: 700 15px var(--sans); text-transform: uppercase; cursor: pointer; }
+.esc--nueva span { display: grid; place-items: center; width: 52px; height: 52px; border: 2px solid var(--tinta); border-radius: 50%; background: var(--acido); color: var(--tinta); }
+.esc--nueva span svg { width: 24px; height: 24px; }
+.esc--nueva:hover { background: var(--superficie); }
+
+/* Crónica dentro de la mesa */
+.evento.is-proyectado .evento__panel { border-color: var(--acido); box-shadow: 6px 6px 0 var(--acido); }
+
+/* Añadir: forjar un personaje */
+.an-forjar { padding-top: 6px; }
+.an-previa { display: grid; gap: 16px; }
+.previa-ed { display: grid; gap: 12px; padding: 14px; border: 2px solid var(--borde-duro); border-radius: 8px; background: var(--superficie-2); }
+.previa-ficha { max-height: 46vh; overflow: auto; padding-right: 4px; }
+
+/* Forja de utilidades */
+.forja-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+.obj { display: grid; gap: 10px; align-content: start; padding: 14px; border-radius: 8px; background: var(--superficie); border: 2px solid var(--borde-duro); box-shadow: 6px 6px 0 var(--dura); }
+.obj--pocion { box-shadow: 6px 6px 0 var(--oxido); }
+.obj--comida { box-shadow: 6px 6px 0 var(--amarillo); }
+.obj--arma, .obj--armadura { box-shadow: 6px 6px 0 var(--pizarra); }
+.obj--tesoro { box-shadow: 6px 6px 0 var(--acido); }
+.obj--nuevo { place-content: center; justify-items: center; min-height: 170px; border: 2px dashed var(--acido); box-shadow: none; background: none; color: var(--texto); font: 700 15px var(--sans); text-transform: uppercase; cursor: pointer; }
+.obj--nuevo span { display: grid; place-items: center; width: 46px; height: 46px; border: 2px solid var(--tinta); border-radius: 50%; background: var(--acido); color: var(--tinta); }
+.obj--nuevo:hover { background: var(--superficie); }
+.obj--mini { box-shadow: none; margin-bottom: 4px; }
+.obj__cab { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; }
+.obj__cab b { display: block; font: 700 15px/1.15 var(--sans); text-transform: uppercase; overflow-wrap: anywhere; }
+.obj__cab small { font-size: 12px; color: var(--texto-2); }
+.obj__ico { display: grid; place-items: center; width: 42px; height: 42px; border: 2px solid var(--tinta); background: var(--tinta); color: var(--acido); }
+.obj__ico svg { width: 22px; height: 22px; }
+.obj__ef { display: flex; align-items: flex-start; gap: 7px; padding: 8px 10px; background: var(--amarillo); color: var(--tinta); font-size: 13px; font-weight: 600; line-height: 1.3; border: 2px solid var(--tinta); }
+.obj__ef.is-sin { background: var(--superficie-2); color: var(--texto-2); border-color: transparent; font-weight: 500; }
+.obj__ef svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+.obj__nota { font-size: 13px; line-height: 1.45; color: var(--texto-2); }
+.obj__acc { display: flex; align-items: center; gap: 4px; margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--linea); }
+.obj__acc .boton--primario { margin-right: auto; }
+.tipos-obj { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+.tipos-obj button { display: flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 10px; border: 1.5px solid var(--linea); border-radius: 8px; background: none; color: var(--texto-2); font: 600 12.5px var(--sans); cursor: pointer; }
+.tipos-obj button svg { width: 17px; height: 17px; flex: none; }
+.tipos-obj button[aria-pressed="true"] { background: var(--amarillo); border-color: var(--tinta); color: var(--tinta); box-shadow: 2px 2px 0 var(--dura); }
+
+/* Ventanas internas: el móvil de un jugador y el editor de mapas */
+.ventana { padding: 0; border: 2px solid var(--borde-duro); border-radius: 12px; background: var(--fondo, var(--superficie)); color: var(--texto); box-shadow: 10px 10px 0 var(--dura); overflow: hidden; }
+.ventana::backdrop { background: rgba(10, 10, 10, .72); }
+.ventana__cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 8px 8px 14px; border-bottom: 2px solid var(--borde-duro); background: var(--superficie); }
+.ventana__cab b { display: inline-flex; align-items: center; gap: 8px; font: 700 13px var(--sans); text-transform: uppercase; letter-spacing: .04em; }
+.ventana__cab svg { width: 18px; height: 18px; }
+.ventana__marco iframe { display: block; width: 100%; height: 100%; border: 0; }
+.ventana--movil { width: min(400px, 94vw); }
+.ventana--movil .ventana__marco { height: min(780px, 82dvh); }
+.ventana--editor { width: 96vw; max-width: none; height: 92dvh; max-height: none; }
+.ventana--editor .ventana__marco { height: 100%; }
+
+/* Editor de mapas: zoom, subir mapa y recorte */
+.zoom { display: inline-flex; align-items: center; padding: 2px; border-radius: 10px; background: var(--superficie-2); }
+.zoom .herr { font-size: 18px; font-weight: 600; }
+.zoom__val { min-width: 58px; padding: 0 6px; font-size: 12.5px !important; font-variant-numeric: tabular-nums; }
+.mesa__caja { position: relative; }
+.subir-mapa { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); z-index: 5; display: grid; justify-items: center; gap: 8px; width: min(340px, 80%); padding: 26px 22px; border: 2px solid var(--tinta); background: var(--acido); color: var(--tinta); box-shadow: 7px 7px 0 var(--dura); font: 500 13px var(--sans); text-align: center; cursor: pointer; }
+.subir-mapa[hidden] { display: none; }
+.subir-mapa svg { width: 34px; height: 34px; }
+.subir-mapa b { font: 700 20px var(--sans); text-transform: uppercase; }
+.subir-mapa:hover { transform: translate(calc(-50% - 2px), calc(-50% - 2px)); box-shadow: 9px 9px 0 var(--dura); }
+.dock__mapa { display: grid; gap: 8px; }
+.dock__mapa > .boton { width: 100%; justify-content: center; }
+.tablero--edit .sel .asa { scale: calc(1 / var(--z, 1)); }
+.tablero--edit.is-moviendo { cursor: grabbing; }
+.rc__ayuda { font-size: 13px; }
+.rc__lienzo { display: grid; place-items: center; min-height: 200px; background: #111; border: 2px solid var(--borde-duro); }
+.rc__lienzo canvas { max-width: 100%; touch-action: none; cursor: crosshair; }
+#recorte .fila-btn svg { width: 16px; height: 16px; }
+.is-embed .mbar { padding-left: 6px; }

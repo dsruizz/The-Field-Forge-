@@ -65,7 +65,16 @@
     corazon: '<path d="M12 20s-7-4.400-7-10a4 4 0 0 1 7-2.500A4 4 0 0 1 19 10c0 5.600-7 10-7 10Z"/>',
     movil: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>',
     hecho: '<path d="M5 12.500l4.500 4.500L19 7.500"/>',
-    dar: '<path d="M4 12h12M12 8l4 4-4 4M20 5v14"/>'
+    dar: '<path d="M4 12h12M12 8l4 4-4 4M20 5v14"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    abajo2: '<path d="M6 9l6 6 6-6"/>',
+    gotero: '<path d="m14 4 6 6M17 7l-9.5 9.5L5 21l-2-2 4.5-2.5L17 7ZM16.5 3.5l4 4"/>',
+    libreta: '<path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6V3ZM6 3v18M9.5 8h6M9.5 12h6"/>',
+    forja: '<path d="M4 15h11l3-4H8L4 15ZM9 15v3M6 21h12M15 18v3M9 18v3M12 4v4M9 6l1.5 2.5M15 6l-1.5 2.5"/>',
+    vela: '<path d="M10 10h4v11h-4zM12 3c1.5 2 1.5 3.5 0 5-1.5-1.5-1.5-3 0-5Z"/>',
+    giraizq: '<path d="M3 4v6h6"/><path d="M3.5 15a9 9 0 1 0 2.1-9.4L3 10"/>',
+    girader: '<path d="M21 4v6h-6"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L21 10"/>',
+    recortar: '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>'
   };
   F.icono = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n] || ''}</svg>`;
   function pintarIconoTema(b) {
@@ -249,6 +258,9 @@
     addEventListener('pagehide', () => es.close());
     return es;
   };
+  /* Vida: por debajo de 0 el personaje cae; si el daño lo deja por debajo de la mitad de su vida en negativo, muere. */
+  F.muerto = (pg, max) => !!max && pg < -max / 2;
+  F.salud = (pg, max) => { if (F.muerto(pg, max)) return 'Muerto'; if (pg <= 0) return 'Caído'; const f = max ? pg / max : 1; return f <= .25 ? 'Malherido' : f <= .6 ? 'Herido' : 'Sano'; };
   F.hace = ms => { const s = Math.max(0, Math.round((Date.now() - ms) / 1000)); return s < 60 ? 'ahora' : s < 3600 ? `hace ${Math.round(s / 60)} min` : `hace ${Math.round(s / 3600)} h`; };
   F.fecha = ms => ms ? new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(ms)) : '';
 })();

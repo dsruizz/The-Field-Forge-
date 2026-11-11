@@ -303,8 +303,8 @@ a.camp:hover::after { opacity: 1; }
   .evento__panel { padding: 16px; box-shadow: 5px 5px 0 var(--dura); }
 }
 /* Mesa dentro de las pestañas: destacada, pero distinta del botón de añadir de cada sección */
-.pestana-mesa { flex: none; align-self: center; margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border-radius: 8px; background: var(--tinta); color: var(--amarillo); border: 2px solid var(--tinta); box-shadow: 3px 3px 0 var(--acido); font: 600 14px var(--sans); text-decoration: none; white-space: nowrap; transition: transform .15s ease, box-shadow .15s ease; }
-.pestana-mesa:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--acido); }
+.pestana-mesa { flex: none; align-self: center; margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 16px; border-radius: 8px; background: var(--acido); color: var(--tinta); border: 2px solid var(--tinta); box-shadow: 3px 3px 0 var(--dura); font: 600 14px var(--sans); text-decoration: none; white-space: nowrap; transition: transform .15s, box-shadow .15s; }
+.pestana-mesa:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--dura); }
 .pestana-mesa svg { width: 18px; height: 18px; }
 :root[data-tema="oscuro"] .pestana-mesa { background: var(--amarillo); color: var(--tinta); border-color: var(--amarillo); box-shadow: 3px 3px 0 var(--oxido); }
 @media (prefers-color-scheme: dark) { :root:not([data-tema="claro"]) .pestana-mesa { background: var(--amarillo); color: var(--tinta); border-color: var(--amarillo); box-shadow: 3px 3px 0 var(--oxido); } }
@@ -468,3 +468,27 @@ dialog.hoja::backdrop { background: rgba(10, 10, 10, .5); backdrop-filter: blur(
 .reparto__acc { display: flex; gap: 4px; }
 .reparto li > b { grid-column: 1 / -1; font-weight: 600; }
 .pets-caja .pets { margin: 22px 0 0; }
+
+/* Menú plegado del jugador y portada de su campaña */
+.menu-camp { position: relative; align-self: center; }
+.menu-camp__boton { display: inline-flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 14px 0 10px; border: 2px solid var(--borde-duro); border-radius: 8px; background: var(--superficie); color: var(--texto); font: 600 14px var(--sans); letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
+.menu-camp__boton svg { width: 20px; height: 20px; }
+.menu-camp .menu__lista { left: 0; right: auto; min-width: 200px; z-index: 40; }
+.menu-camp .menu__lista button[aria-current="true"] { font-weight: 700; }
+.pestanas-camp__in:has(.menu-camp) { padding: 8px 0; overflow: visible; }
+.inicio-camp { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); gap: 28px; align-items: start; }
+.inicio-camp__txt { display: grid; gap: 14px; padding: 24px; background: var(--superficie); border: 2px solid var(--borde-duro); border-radius: 8px; box-shadow: 7px 7px 0 var(--dura); font-size: 17px; line-height: 1.7; }
+.inicio-camp__tit { font: 700 14px var(--sans); letter-spacing: .1em; text-transform: uppercase; }
+.inicio-camp__grupo { display: grid; gap: 12px; }
+.inicio-camp__grupo ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.inicio-camp__grupo li { display: grid; grid-template-columns: 44px 1fr; gap: 12px; align-items: center; padding: 8px; background: var(--superficie); border: 2px solid var(--linea); border-radius: 6px; }
+.inicio-camp__grupo b { display: block; line-height: 1.2; }
+.inicio-camp__grupo small { font-size: 12px; color: var(--texto-2); }
+@media (max-width: 760px) { .inicio-camp { grid-template-columns: 1fr; } }
+
+/* Grupo y ajustes en rejilla */
+.ajustes { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 20px; align-items: stretch; }
+.ajustes .panel { border: 2px solid var(--borde-duro); border-radius: 8px; box-shadow: 6px 6px 0 var(--dura); align-content: start; }
+.miembros__pj { display: block; font-size: 12px; color: var(--texto-2); }
+.miembros__acc { display: inline-flex; align-items: center; gap: 6px; }
+.fila-acciones { display: flex; flex-wrap: wrap; gap: 8px; }

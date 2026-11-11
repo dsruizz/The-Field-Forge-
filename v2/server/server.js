@@ -293,7 +293,7 @@ function vistaJugador(d) {
       return { id: p.id, tipo: p.tipo, nombre: p.nombre, img: p.img, rol: p.rol, raza: p.raza, actitud: p.actitud, estado: p.estado, pers: { rasgo: (p.pers || {}).rasgo || '' } };
     });
   const c = d.campana || {};
-  return { version: d.version, campana: { titulo: c.titulo, sinopsis: c.sinopsis, portada: c.portada, sesiones: c.sesiones, sesionActual: c.sesionActual }, cronica, personajes, hilos: [], mapas: [], jugadores: d.jugadores || {} };
+  return { version: d.version, campana: { titulo: c.titulo, sinopsis: c.sinopsis, portada: c.portada, sesiones: c.sesiones, sesionActual: c.sesionActual }, cronica: [], personajes, hilos: [], mapas: [], jugadores: d.jugadores || {} };
 }
 function validarDatos(d) {
   if (!d || typeof d !== 'object' || Array.isArray(d)) fallo(400, 'Datos de campaña no válidos.');
@@ -308,6 +308,29 @@ function validarFicha(f) {
   if (f.img && f.img.length > 900 * 1024) fallo(400, 'La imagen es demasiado grande.');
   const { id, actualizado, ...resto } = f;
   return { ...resto, nombre };
+}
+/* Copia de la partida en .zip (sin comprimir: las imágenes ya lo están). Dentro: partida.json y la carpeta img/. */
+const TABLA_CRC = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+const crc32 = buf => { let c = 0xffffffff; for (const b of buf) c = TABLA_CRC[(c ^ b) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+function zip(archivos) {
+  const partes = [], central = []; let pos = 0;
+  for (const { nombre, datos } of archivos) {
+    const n = Buffer.from(nombre, 'utf8'), crc = crc32(datos);
+    const loc = Buffer.alloc(30); loc.writeUInt32LE(0x04034b50, 0); loc.writeUInt16LE(20, 4); loc.writeUInt16LE(0x0800, 6); loc.writeUInt32LE(crc, 14); loc.writeUInt32LE(datos.length, 18); loc.writeUInt32LE(datos.length, 22); loc.writeUInt16LE(n.length, 26);
+    const cen = Buffer.alloc(46); cen.writeUInt32LE(0x02014b50, 0); cen.writeUInt16LE(20, 4); cen.writeUInt16LE(20, 6); cen.writeUInt16LE(0x0800, 8); cen.writeUInt32LE(crc, 16); cen.writeUInt32LE(datos.length, 20); cen.writeUInt32LE(datos.length, 24); cen.writeUInt16LE(n.length, 28); cen.writeUInt32LE(pos, 42);
+    partes.push(loc, n, datos); central.push(cen, n); pos += 30 + n.length + datos.length;
+  }
+  const cd = Buffer.concat(central), fin = Buffer.alloc(22);
+  fin.writeUInt32LE(0x06054b50, 0); fin.writeUInt16LE(archivos.length, 8); fin.writeUInt16LE(archivos.length, 10); fin.writeUInt32LE(cd.length, 12); fin.writeUInt32LE(pos, 16);
+  return Buffer.concat([...partes, cd, fin]);
+}
+function copiaZip(c) {
+  const d = leerDatos(c), prefijo = `api/campanas/${c.id}/img/`, imgs = new Set();
+  const txt = JSON.stringify(d, (k, v) => { if (typeof v === 'string' && v.startsWith(prefijo)) { const f = path.basename(v); imgs.add(f); return 'img/' + f; } return v; });
+  const estado = JSON.parse(txt); delete estado.peticiones;
+  const archivos = [{ nombre: 'partida.json', datos: Buffer.from(JSON.stringify({ formato: 'the-field-forge', version: 2, exportada: new Date().toISOString(), campana: { nombre: c.nombre, ambientacion: c.ambientacion, sinopsis: c.sinopsis }, estado }, null, 1)) }];
+  for (const f of imgs) { try { archivos.push({ nombre: 'img/' + f, datos: fs.readFileSync(path.join(IMG_DIR, c.id, f)) }); } catch { /* imagen perdida: se omite */ } }
+  return zip(archivos);
 }
 function servirImagen(res, campanaId, nombre) {
   const archivo = path.join(IMG_DIR, campanaId, path.basename(nombre));
@@ -326,7 +349,8 @@ function servirImagen(res, campanaId, nombre) {
    «jugadores» (quién lleva a quién) y «peticiones» solo cambian por estas rutas. */
 const LUGARES = ['equipado', 'mochila', 'guardado'];
 const TIPOS_OBJ = ['arma', 'armadura', 'escudo', 'pocion', 'frasco', 'pergamino', 'comida', 'herramienta', 'tesoro', 'objeto'];
-const CAMPOS_JUGADOR = ['pg', 'inv', 'usados', '_tj'];
+const CAMPOS_JUGADOR = ['pg', 'inv', 'usados', 'efectos', 'cuaderno', '_tj'];
+const ATRS = ['fue', 'des', 'con', 'int', 'sab', 'car'];
 const idCorto = p => p + '_' + crypto.randomBytes(5).toString('base64url');
 const entero = (v, min, max, def) => { const n = parseInt(v, 10); return Number.isNaN(n) ? def : Math.min(max, Math.max(min, n)); };
 const camposJugador = p => Object.fromEntries(CAMPOS_JUGADOR.map(k => [k, p[k]]));
@@ -343,12 +367,61 @@ function asegurarInv(p) {
   p.inv = [...armas, ...defensa];
   return true;
 }
+/* Objetos con efecto (forja de utilidades): curar, sumar a un atributo o a la CA durante unos turnos. */
+function validarEfecto(x) {
+  if (!x || typeof x !== 'object') return null;
+  const clase = ['curar', 'atributo', 'ca'].includes(x.clase) ? x.clase : null;
+  if (!clase) return null;
+  const ef = { clase };
+  if (clase === 'curar') { ef.dados = /^\s*\d{0,2}d\d{1,3}(\s*[+-]\s*\d{1,3})?\s*$|^\s*\d{1,3}\s*$/i.test(String(x.dados || '')) ? String(x.dados).replace(/\s+/g, '') : '1d4'; }
+  else { ef.valor = entero(x.valor, -10, 10, 1); ef.turnos = entero(x.turnos, 1, 100, 3); if (clase === 'atributo') ef.atr = ATRS.includes(x.atr) ? x.atr : 'fue'; }
+  return ef;
+}
+function validarObjeto(o) {
+  const n = texto(o && o.n, 60); if (!n) fallo(400, 'Ponle un nombre al objeto.');
+  const ob = { n, tipo: TIPOS_OBJ.includes(o.tipo) ? o.tipo : 'objeto', cant: entero(o.cant, 1, 9999, 1), nota: texto(o.nota, 300) };
+  const ef = validarEfecto(o.efecto); if (ef) ob.efecto = ef;
+  if (o.consumible || ef) { ob.consumible = o.consumible !== false; ob.resto = texto(o.resto, 40); }
+  return ob;
+}
+const tirar = expr => {
+  const m = /^(\d{0,2})d(\d{1,3})([+-]\d{1,3})?$/i.exec(expr);
+  if (!m) return Number(expr) || 0;
+  let t = 0; for (let i = 0; i < (Number(m[1]) || 1); i++) t += crypto.randomInt(1, Number(m[2]) + 1);
+  return t + (Number(m[3]) || 0);
+};
+const NOMBRE_ATR = { fue: 'Fuerza', des: 'Destreza', con: 'Constitución', int: 'Inteligencia', sab: 'Sabiduría', car: 'Carisma', ca: 'CA' };
+// Gasta una unidad, deja el resto (frasco, jarra…) y aplica el efecto. Devuelve qué pasó, en palabras.
+function usarObjeto(p, ob) {
+  let que = '';
+  const ef = ob.efecto;
+  if (ef && ef.clase === 'curar') {
+    const r = Math.max(0, tirar(ef.dados)); const antes = Math.max(0, p.pg ?? p.pgMax ?? 0);
+    p.pg = Math.min(p.pgMax || 999, antes + r); que = `recupera ${p.pg - antes} PG (${ef.dados} = ${r})`;
+  } else if (ef) {
+    const atr = ef.clase === 'ca' ? 'ca' : ef.atr;
+    p.efectos = (p.efectos || []).filter(x => !(x.n === ob.n && x.atr === atr));
+    p.efectos.push({ id: idCorto('ef'), n: ob.n, atr, valor: ef.valor, turnos: ef.turnos });
+    que = `${NOMBRE_ATR[atr]} ${ef.valor >= 0 ? '+' : ''}${ef.valor} durante ${ef.turnos} ${ef.turnos === 1 ? 'turno' : 'turnos'}`;
+  }
+  if (ob.consumible !== false && (ef || ['pocion', 'pergamino', 'comida'].includes(ob.tipo))) {
+    ob.cant -= 1;
+    if (ob.cant <= 0) p.inv = p.inv.filter(x => x !== ob);
+    const resto = ob.resto || (ob.tipo === 'pocion' ? 'Frasco vacío' : '');
+    if (resto) {
+      const ya = p.inv.find(x => x.tipo === 'frasco' && x.n === resto);
+      if (ya) ya.cant += 1; else p.inv.push({ id: idCorto('ob'), n: resto, tipo: 'frasco', cant: 1, nota: 'Era: ' + ob.n, lugar: 'mochila' });
+    }
+  }
+  return que;
+}
+
 const guardarDatos = (c, d, subirRev) => {
   const rev = c.rev + (subirRev ? 1 : 0);
   db.prepare('UPDATE campanas SET datos = ?, rev = ?, actualizada = ? WHERE id = ?').run(JSON.stringify(d), rev, Date.now(), c.id);
   return rev;
 };
-const pendientes = d => (d.peticiones || []).filter(x => x.estado === 'pendiente');
+const pendientes = d => (d.peticiones || []).filter(x => x.estado === 'pendiente').map(({ ficha, ...x }) => x);
 function podarPeticiones(d) {
   const p = d.peticiones || [];
   const resueltas = p.filter(x => x.estado !== 'pendiente').slice(-30);
@@ -356,23 +429,37 @@ function podarPeticiones(d) {
 }
 // Aplica una petición ya autorizada. Devuelve los personajes que cambian.
 function aplicarPeticion(d, pet) {
+  if (pet.tipo === 'pj') {
+    d.jugadores = d.jugadores || {};
+    if (d.jugadores[pet.usuario]) fallo(409, pet.usuario + ' ya lleva otro personaje.');
+    let p;
+    if (pet.pjCamp) {
+      p = d.personajes.find(x => x.id === pet.pjCamp && x.tipo === 'pj') || fallo(409, 'Ese personaje ya no está en la campaña.');
+      if (Object.values(d.jugadores).includes(p.id)) fallo(409, 'Ese personaje ya lo lleva otra persona.');
+    } else {
+      if (d.personajes.filter(x => x.tipo === 'pj').length >= 12) fallo(409, 'La campaña ya tiene demasiados personajes jugadores.');
+      p = { ...pet.ficha, id: idCorto('pj'), tipo: 'pj', estado: 'activo', rol: 'PJ de ' + pet.usuario };
+      d.personajes.push(p); pet.nuevo = true;
+    }
+    asegurarInv(p); marcar(p);
+    d.jugadores[pet.usuario] = p.id; pet.pj = p.id;
+    return [p];
+  }
   const p = d.personajes.find(x => x.id === pet.pj && x.tipo === 'pj');
   if (!p) fallo(409, 'Ese personaje ya no está en la campaña.');
   asegurarInv(p);
   const tocados = [p];
   if (pet.tipo === 'anadir') {
     if (p.inv.length >= 80) fallo(409, 'El inventario está lleno.');
-    p.inv.push({ id: idCorto('ob'), ...pet.nuevo, lugar: 'mochila' });
+    const igual = p.inv.find(x => x.n === pet.nuevo.n && x.tipo === pet.nuevo.tipo && JSON.stringify(x.efecto || null) === JSON.stringify(pet.nuevo.efecto || null));
+    if (igual) igual.cant += pet.nuevo.cant; else p.inv.push({ id: idCorto('ob'), ...pet.nuevo, lugar: 'mochila' });
   } else {
     const ob = p.inv.find(x => x.id === pet.objeto);
     if (!ob) fallo(409, 'Ese objeto ya no está en el inventario.');
+    if (pet.tipo === 'usar') { pet.resultado = usarObjeto(p, ob); tocados.forEach(marcar); return tocados; }
     const cant = Math.min(pet.cant || 1, ob.cant);
     ob.cant -= cant;
     if (ob.cant <= 0) p.inv = p.inv.filter(x => x !== ob);
-    if (pet.tipo === 'usar' && ob.tipo === 'pocion') {
-      const frasco = p.inv.find(x => x.tipo === 'frasco' && x.n === 'Frasco vacío');
-      if (frasco) frasco.cant += cant; else p.inv.push({ id: idCorto('ob'), n: 'Frasco vacío', tipo: 'frasco', cant, nota: 'Era: ' + ob.n, lugar: 'mochila' });
-    }
     if (pet.tipo === 'dar') {
       const a = d.personajes.find(x => x.id === pet.a && x.tipo === 'pj');
       if (!a) fallo(409, 'Quien iba a recibirlo ya no está en la campaña.');
@@ -398,7 +485,7 @@ function difundir(campanaId, hacer) {
 function avisarCambio(campanaId, d, tocados = [], extra = {}) {
   difundir(campanaId, o => o.dm
     ? { parches: tocados.map(p => ({ id: p.id, campos: camposJugador(p) })), peticiones: pendientes(d), jugadores: d.jugadores || {}, ...extra }
-    : { pj: tocados.map(p => p.id) });
+    : { pj: tocados.map(p => p.id), pg: Object.fromEntries(tocados.map(p => [p.id, p.pg])), ...(extra.aviso ? { aviso: extra.aviso } : {}) });
 }
 setInterval(() => { for (const grupo of oyentes.values()) for (const o of grupo) o.res.write(': sigo aquí\n\n'); }, 20000).unref();
 
@@ -497,7 +584,7 @@ async function api(req, res, ruta, consulta) {
   }
 
   /* ---- Contenido de la campaña ---- */
-  const md = /^campanas\/([\w-]{4,20})\/(datos|importar|vivo|jugador|peticion|img|img\/([\w.-]{1,80}))$/.exec(ruta);
+  const md = /^campanas\/([\w-]{4,20})\/(datos|importar|copia|vivo|jugador|peticion|img|img\/([\w.-]{1,80}))$/.exec(ruta);
   if (md) {
     const u = exigirUsuario(req);
     const c = db.prepare('SELECT * FROM campanas WHERE id = ?').get(md[1]);
@@ -506,6 +593,13 @@ async function api(req, res, ruta, consulta) {
     const esDm = mem.rol === 'dm';
 
     if (md[3] && m === 'GET') return servirImagen(res, c.id, md[3]);
+    if (md[2] === 'copia' && m === 'GET') {
+      if (!esDm) fallo(403, 'Solo el DM puede descargar la partida.');
+      const buf = copiaZip(c), fecha = new Date().toISOString().slice(0, 10);
+      const nombre = (c.nombre.normalize('NFD').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase() || 'partida') + '-' + fecha + '.zip';
+      res.writeHead(200, { 'Content-Type': 'application/zip', 'Content-Length': buf.length, 'Content-Disposition': `attachment; filename="${nombre}"`, 'Cache-Control': 'no-store' });
+      return res.end(buf);
+    }
     if (md[2] === 'datos' && m === 'GET') {
       const d = leerDatos(c);
       return json(res, 200, { rev: c.rev, rol: mem.rol, datos: esDm ? d : vistaJugador(d) });
@@ -539,7 +633,7 @@ async function api(req, res, ruta, consulta) {
         elegibles: esDm ? pjs.map(x => ({ ...breve(x), jugador: quien(x.id) })) : p ? [] : pjs.filter(x => !ocupados.has(x.id) && x.estado !== 'muerto').map(breve),
         mios: !esDm && !p ? db.prepare('SELECT id, datos FROM personajes WHERE usuario_id = ? ORDER BY actualizado DESC').all(u.id).map(f => breve({ ...JSON.parse(f.datos), id: f.id })) : [],
         companeros: p ? pjs.filter(x => x.id !== p.id && x.estado !== 'muerto').map(x => ({ id: x.id, nombre: x.nombre })) : [],
-        peticiones: p ? (d.peticiones || []).filter(x => x.pj === p.id).slice(-8) : []
+        peticiones: (p ? (d.peticiones || []).filter(x => x.pj === p.id) : (d.peticiones || []).filter(x => x.tipo === 'pj' && x.usuario === u.usuario)).slice(-8).map(({ ficha, ...x }) => x)
       });
     }
     if (md[2] === 'jugador' && m === 'POST') {
@@ -563,20 +657,25 @@ async function api(req, res, ruta, consulta) {
       }
       if (!esDm && !d.jugadores[u.usuario]) {
         // Aún sin personaje: elige uno libre de la campaña o trae uno de los suyos.
-        let p;
-        if (accion === 'elegir') p = pjLibre(b.pj) || fallo(409, 'Ese personaje ya lo lleva otra persona.');
-        else if (accion === 'traer') {
-          const fila = db.prepare('SELECT * FROM personajes WHERE id = ? AND usuario_id = ?').get(texto(b.personaje, 40), u.id);
-          if (!fila) fallo(404, 'Ese personaje no existe.');
-          if (d.personajes.filter(x => x.tipo === 'pj').length >= 12) fallo(409, 'La campaña ya tiene demasiados personajes jugadores.');
-          p = { ...JSON.parse(fila.datos), id: idCorto('pj'), tipo: 'pj', estado: 'activo', rol: 'PJ de ' + u.usuario };
-          d.personajes.push(p);
-        } else fallo(400, 'Primero elige tu personaje.');
-        asegurarInv(p); marcar(p);
-        d.jugadores[u.usuario] = p.id;
-        // Un personaje nuevo sí cambia la revisión: el DM lo recibe por el canal en vivo junto con ella.
-        const rev = guardarDatos(cc, d, accion === 'traer');
-        avisarCambio(cc.id, d, [p], accion === 'traer' ? { nuevo: p, rev } : {});
+        // Aún sin personaje: pide al DM uno libre de la campaña o traer uno de los suyos. El DM revisa la ficha y decide.
+        const mia = d.peticiones.find(x => x.tipo === 'pj' && x.usuario === u.usuario && x.estado === 'pendiente');
+        if (accion === 'cancelar') { if (mia) d.peticiones = d.peticiones.filter(x => x !== mia); }
+        else {
+          if (mia) fallo(409, 'Ya tienes una petición esperando al DM. Cancélala para pedir otro personaje.');
+          const pet = { id: idCorto('pet'), tipo: 'pj', usuario: u.usuario, t: Date.now(), estado: 'pendiente' };
+          if (accion === 'elegir') {
+            const x = pjLibre(b.pj) || fallo(409, 'Ese personaje ya lo lleva otra persona.');
+            Object.assign(pet, { pjCamp: x.id, quien: x.nombre, texto: 'Quiere interpretar a ' + x.nombre });
+          } else if (accion === 'traer') {
+            const fila = db.prepare('SELECT * FROM personajes WHERE id = ? AND usuario_id = ?').get(texto(b.personaje, 40), u.id);
+            if (!fila) fallo(404, 'Ese personaje no existe.');
+            const f = JSON.parse(fila.datos);
+            Object.assign(pet, { ficha: f, quien: f.nombre, img: f.img && f.img.length < 200 * 1024 ? f.img : '', texto: 'Quiere jugar con su personaje ' + f.nombre });
+          } else fallo(400, 'Primero elige tu personaje.');
+          d.peticiones.push(pet);
+        }
+        podarPeticiones(d);
+        guardarDatos(cc, d); avisarCambio(cc.id, d, []);
         return json(res, 201, { ok: true });
       }
 
@@ -589,7 +688,28 @@ async function api(req, res, ruta, consulta) {
       let tocados = [p];
 
       if (accion === 'soltar') { if (esDm) fallo(400, 'Usa «asignar».'); delete d.jugadores[u.usuario]; }
-      else if (accion === 'pg') p.pg = entero(b.valor, 0, p.pgMax || 999, p.pg ?? p.pgMax ?? 0);
+      else if (['pg', 'espacio', 'descanso'].includes(accion) && !directo) fallo(403, 'La vida y los espacios de conjuro los lleva el DM.');
+      else if (accion === 'pg') p.pg = entero(b.valor, -(p.pgMax || 999), p.pgMax || 999, p.pg ?? p.pgMax ?? 0);
+      else if (accion === 'notas') {
+        const hojas = Array.isArray(b.hojas) ? b.hojas.slice(0, 60).map(h => texto(h, 3000)) : [];
+        p.cuaderno = hojas.length ? hojas : [''];
+        tocados = []; // solo cambia lo del propio jugador: no hace falta avisar a nadie
+        marcar(p);
+      }
+      else if (accion === 'usar') {
+        const ob = objeto();
+        if (!ob.efecto && !directo) fallo(403, 'Ese objeto se usa pidiéndoselo al DM.');
+        const que = usarObjeto(p, ob);
+        tocados.forEach(marcar); guardarDatos(cc, d);
+        avisarCambio(cc.id, d, tocados, { aviso: `${p.nombre} usa ${ob.n}${que ? ': ' + que : ''}` });
+        return json(res, 200, { ok: true, resultado: que });
+      }
+      else if (accion === 'dar') {
+        if (!esDm) fallo(403, 'Solo el DM reparte objetos de la forja.');
+        if (p.inv.length >= 80) fallo(409, 'El inventario está lleno.');
+        const ob = validarObjeto(b.objeto);
+        aplicarPeticion(d, { tipo: 'anadir', pj: p.id, nuevo: ob });
+      }
       else if (accion === 'espacio') {
         const nivel = String(entero(b.nivel, 1, 9, 1)), max = Number(((p.conj || {}).espacios || {})[nivel]) || 0;
         p.usados = { ...(p.usados || {}), [nivel]: entero(b.usados, 0, max, 0) };
@@ -606,6 +726,7 @@ async function api(req, res, ruta, consulta) {
         if (tipo === 'anadir') {
           const n = texto(b.n, 60); if (!n) fallo(400, 'Ponle un nombre al objeto.');
           pet.nuevo = { n, tipo: TIPOS_OBJ.includes(b.clase) ? b.clase : 'objeto', cant: entero(b.cant, 1, 9999, 1), nota: texto(b.nota, 140) };
+          if (['pocion', 'pergamino', 'comida'].includes(pet.nuevo.tipo)) pet.nuevo.consumible = true;
           pet.texto = 'Añadir ' + (pet.nuevo.cant > 1 ? pet.nuevo.cant + ' × ' : '') + n;
         } else {
           const ob = objeto();
@@ -625,11 +746,16 @@ async function api(req, res, ruta, consulta) {
       else fallo(400, 'Acción desconocida.');
       tocados.forEach(marcar);
       podarPeticiones(d);
-      guardarDatos(cc, d); avisarCambio(cc.id, d, tocados);
+      guardarDatos(cc, d); if (tocados.length || accion === 'pedir' || accion === 'cancelar') avisarCambio(cc.id, d, tocados);
       return json(res, 200, { ok: true });
     }
 
     if (!esDm) fallo(403, 'Solo el DM puede cambiar la campaña.');
+    if (md[2] === 'peticion' && m === 'GET' && consulta && consulta.get('ficha')) {
+      const pet = (leerDatos(c).peticiones || []).find(x => x.id === consulta.get('ficha')) || fallo(404, 'Esa petición ya no existe.');
+      const d = leerDatos(c);
+      return json(res, 200, { ficha: pet.ficha || d.personajes.find(x => x.id === pet.pjCamp) || null });
+    }
     if (md[2] === 'peticion' && m === 'GET') { const d = leerDatos(c); return json(res, 200, { peticiones: pendientes(d), jugadores: d.jugadores || {}, parches: d.personajes.filter(p => p._tj).map(p => ({ id: p.id, campos: camposJugador(p) })) }); }
     if (md[2] === 'peticion' && m === 'POST') {
       const b = await leerCuerpo(req);
@@ -640,9 +766,14 @@ async function api(req, res, ruta, consulta) {
       else pet.estado = 'rechazada';
       pet.resuelta = Date.now();
       const dueno = d.personajes.find(x => x.id === pet.pj);
+      const nuevo = pet.nuevo === true && pet.estado === 'aprobada' ? d.personajes.find(x => x.id === pet.pj) : null;
+      delete pet.ficha; delete pet.nuevo;
       podarPeticiones(d);
-      guardarDatos(cc, d); avisarCambio(cc.id, d, tocados.length ? tocados : dueno ? [dueno] : []);
-      return json(res, 200, { estado: pet.estado, aviso, parches: tocados.map(p => ({ id: p.id, campos: camposJugador(p) })), peticiones: pendientes(d) });
+      // Un personaje nuevo sí cambia la revisión: el DM lo recibe por el canal en vivo junto con ella.
+      const rev = guardarDatos(cc, d, !!nuevo);
+      avisarCambio(cc.id, d, tocados.length ? tocados : dueno ? [dueno] : [], { ...(nuevo ? { nuevo, rev } : {}), ...(pet.resultado ? { aviso: `${pet.quien}: ${pet.resultado}` } : {}) });
+      if (pet.tipo === 'pj') difundir(cc.id, o => !o.dm && { pj: ['*'] });
+      return json(res, 200, { estado: pet.estado, aviso: aviso || pet.resultado || '', parches: tocados.map(p => ({ id: p.id, campos: camposJugador(p) })), peticiones: pendientes(d), nuevo, rev });
     }
     if (md[2] === 'datos' && m === 'PUT') {
       const b = await leerCuerpo(req, 12 * 1024 * 1024);
@@ -656,12 +787,12 @@ async function api(req, res, ruta, consulta) {
         const a = antes.personajes.find(x => x.id === p.id);
         if (!a) continue;
         if (a._tj && a._tj !== p._tj) for (const k of CAMPOS_JUGADOR) { if (a[k] === undefined) delete p[k]; else p[k] = a[k]; }
-        else if (p.tipo === 'pj' && ['pg', 'pgMax', 'ca', 'nivel', 'nombre', 'estado'].some(k => a[k] !== p[k])) cambiados.push(p);
+        else if (p.tipo === 'pj' && (['pg', 'pgMax', 'ca', 'nivel', 'nombre', 'estado'].some(k => a[k] !== p[k]) || JSON.stringify(a.efectos || []) !== JSON.stringify(p.efectos || []))) cambiados.push(p);
       }
       for (const k of Object.keys(d.jugadores)) if (!d.personajes.some(p => p.id === d.jugadores[k] && p.tipo === 'pj')) delete d.jugadores[k];
       const rev = guardarDatos(cc, d, true);
       // También a las otras ventanas del DM: puede tener abierto el móvil de un personaje.
-      if (cambiados.length) difundir(cc.id, () => ({ pj: cambiados.map(p => p.id) }));
+      if (cambiados.length) difundir(cc.id, () => ({ pj: cambiados.map(p => p.id), pg: Object.fromEntries(cambiados.map(p => [p.id, p.pg])) }));
       return json(res, 200, { rev });
     }
     if (md[2] === 'img' && m === 'POST') {
@@ -687,7 +818,8 @@ async function api(req, res, ruta, consulta) {
         mapa[ref] = `api/campanas/${c.id}/img/${nombre}`;
       }
       const txt = JSON.stringify(b.estado, (k, v) => (typeof v === 'string' && mapa[v]) ? mapa[v] : v);
-      const d = validarDatos(JSON.parse(txt)); d.jugadores = {}; d.peticiones = [];
+      const d = validarDatos(JSON.parse(txt)); d.peticiones = [];
+      d.jugadores = b.version >= 2 && d.jugadores && typeof d.jugadores === 'object' ? Object.fromEntries(Object.entries(d.jugadores).filter(([, v]) => d.personajes.some(p => p.id === v))) : {};
       const rev = c.rev + 1;
       db.prepare('UPDATE campanas SET datos = ?, rev = ?, actualizada = ?, sinopsis = CASE WHEN sinopsis = \'\' THEN ? ELSE sinopsis END WHERE id = ?')
         .run(JSON.stringify(d), rev, Date.now(), texto(d.campana && d.campana.sinopsis, 1200), c.id);
@@ -800,8 +932,8 @@ function estatico(req, res, ruta, versionado) {
 const CABECERAS_SEGURIDAD = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'same-origin',
-  'X-Frame-Options': 'DENY',
-  'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+  'X-Frame-Options': 'SAMEORIGIN',
+  'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
 };
 
 http.createServer(async (req, res) => {

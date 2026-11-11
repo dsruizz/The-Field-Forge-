@@ -1,5 +1,5 @@
-/* Campaña: crónica, personajes, hilos y grupo.
-   El DM edita todo; el jugador solo lee (el servidor ya le envía la versión filtrada). */
+/* Campaña: portada, personajes, hilos y grupo. La crónica es del DM y vive en la mesa.
+   El jugador ve la portada, la sinopsis y un menú con Personajes y Grupo; su ficha está en «Mi personaje». */
 (async () => {
   const F = window.Forja;
   const TFF = window.TFF;
@@ -13,12 +13,11 @@
   const $ = s => document.querySelector(s);
   const main = $('[data-contenido]');
 
-  const TIPOS = { escena: 'Escena', personaje: 'Personaje', combate: 'Combate', descubrimiento: 'Descubrimiento', decision: 'Decisión', hito: 'Hito' };
   const ROMANO = n => { const m = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]; let s = ''; for (const [v, r] of m) while (n >= v) { s += r; n -= v; } return s; };
 
   let resumen, miembros, datos, rev, esDm;
-  let pestana = params.get('ver') || 'cronica';
-  const filtro = { sesion: 'todas', texto: '', tipo: 'todos' };
+  let pestana = params.get('ver') || '';
+  const filtro = { texto: '', tipo: 'todos' };
 
   /* ---------- Carga ---------- */
   try {
@@ -63,143 +62,57 @@
       [resumen.pjs.length, resumen.pjs.length === 1 ? 'personaje jugador' : 'personajes jugadores'],
       ult ? [ROMANO(ult.sesion), 'último: ' + ult.titulo] : null
     ].filter(Boolean).map(([b, s]) => `<div class="cifra"><b>${e(b)}</b><span>${e(s)}</span></div>`).join('');
-    $('[data-acciones-portada]').innerHTML = `<span class="chip ${esDm ? 'chip--dm' : ''}">${esDm ? 'Eres el DM' : 'Jugador · solo lectura'}</span>`;
+    $('[data-acciones-portada]').innerHTML = `<span class="chip ${esDm ? 'chip--dm' : ''}">${esDm ? 'Eres el DM' : 'Jugador'}</span>`;
     if (!pintarPortada.brasas) pintarPortada.brasas = F.particulas($('[data-chispas]'), 'brasas', { color: 'verde', origen: 'ancho', densidad: .45 });
   }
 
   /* ---------- Pestañas ---------- */
-  const PESTANAS = () => [['cronica', 'Crónica'], ['personajes', 'Personajes'], ...(esDm ? [['hilos', 'Hilos']] : []), ['grupo', esDm ? 'Grupo y ajustes' : 'Grupo']];
+  // El DM tiene pestañas; el jugador, un menú plegado (la mayor parte del tiempo solo mira la portada).
+  const PESTANAS = () => esDm ? [['personajes', 'Personajes'], ['hilos', 'Hilos'], ['grupo', 'Grupo y ajustes']] : [['inicio', 'La campaña'], ['personajes', 'Personajes'], ['grupo', 'Grupo']];
   function pintarPestanas() {
     $('[data-pestanas-caja]').hidden = false;
-    if (!PESTANAS().some(([k]) => k === pestana)) pestana = 'cronica';
-    $('[data-pestanas]').innerHTML = PESTANAS().map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === pestana}" data-pestana="${k}">${t}</button>`).join('')
-      + (esDm ? `<a class="pestana-mesa" href="mesa.html?id=${encodeURIComponent(id)}">${F.icono('mesa')}Mesa y proyección</a>`
-        : `<a class="pestana-mesa" href="jugador.html?id=${encodeURIComponent(id)}">${F.icono('movil')}Mi personaje</a>`);
+    if (!PESTANAS().some(([k]) => k === pestana)) pestana = PESTANAS()[0][0];
+    const boton = esDm ? `<a class="pestana-mesa" href="mesa.html?id=${encodeURIComponent(id)}">${F.icono('mesa')}Mesa y proyección</a>`
+      : `<a class="pestana-mesa" href="jugador.html?id=${encodeURIComponent(id)}">${F.icono('movil')}Mi personaje</a>`;
+    if (esDm) {
+      $('[data-pestanas]').innerHTML = PESTANAS().map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === pestana}" data-pestana="${k}">${t}</button>`).join('') + boton;
+      return;
+    }
+    const actual = PESTANAS().find(([k]) => k === pestana)[1];
+    $('[data-pestanas]').innerHTML = `
+      <div class="menu menu-camp">
+        <button class="menu-camp__boton" type="button" aria-haspopup="true" aria-expanded="false" data-menu-camp>${F.icono('menu')}<span>${e(actual)}</span></button>
+        <div class="menu__lista" hidden data-menu-camp-lista>${PESTANAS().map(([k, t]) => `<button type="button" data-pestana="${k}"${k === pestana ? ' aria-current="true"' : ''}>${t}</button>`).join('')}</div>
+      </div>${boton}`;
   }
   $('[data-pestanas]').addEventListener('click', ev => {
+    const m = ev.target.closest('[data-menu-camp]');
+    if (m) { const l = $('[data-menu-camp-lista]'); l.hidden = !l.hidden; m.setAttribute('aria-expanded', String(!l.hidden)); return; }
     const b = ev.target.closest('[data-pestana]'); if (!b) return;
     pestana = b.dataset.pestana;
     const u = new URL(location.href); u.searchParams.set('ver', pestana); history.replaceState(null, '', u);
     pintarPestanas(); pintarPanel(true);
   });
+  document.addEventListener('click', ev => { if (!ev.target.closest('.menu-camp')) { const l = $('[data-menu-camp-lista]'); if (l) l.hidden = true; } });
+
+  function panelInicio() {
+    const sinopsis = resumen.sinopsis || (datos.campana || {}).sinopsis || '';
+    const pjs = (datos.personajes || []).filter(p => p.tipo === 'pj' && p.estado !== 'muerto');
+    main.innerHTML = `
+      <section class="inicio-camp">
+        <div class="inicio-camp__txt">
+          <h2 class="inicio-camp__tit">De qué va</h2>
+          ${sinopsis ? sinopsis.split(/\n{2,}/).map(par => `<p>${e(par)}</p>`).join('') : '<p class="suave">El DM aún no ha escrito la descripción de la campaña.</p>'}
+        </div>
+        ${pjs.length ? `<aside class="inicio-camp__grupo"><h2 class="inicio-camp__tit">El grupo</h2><ul>${pjs.map(p => `<li>${F.ficha.retrato(p, 'pet__retrato')}<span><b>${e(p.nombre)}</b><small>${e(F.ficha.linea(p))}</small></span></li>`).join('')}</ul></aside>` : ''}
+      </section>`;
+  }
 
   function pintarPanel(animar) {
-    ({ cronica: panelCronica, personajes: panelPersonajes, hilos: panelHilos, grupo: panelGrupo })[pestana]();
-    if (animar) F.entrar(main.querySelectorAll('.evento, .pjc, .hilo, .panel, .sesion__cab'), { y: 12, stagger: .02 });
+    ({ inicio: panelInicio, personajes: panelPersonajes, hilos: panelHilos, grupo: panelGrupo })[pestana]();
+    if (animar) F.entrar(main.querySelectorAll('.pjc, .hilo, .panel, .inicio-camp > *'), { y: 12, stagger: .02 });
   }
   function pintarTodo() { pintarPortada(); pintarPanel(false); }
-
-  /* ---------- Crónica ---------- */
-  function panelCronica() {
-    const cr = (datos.cronica || []).slice();
-    const sesiones = [...new Set(cr.map(x => x.sesion))].sort((a, b) => b - a);
-    const q = filtro.texto.trim().toLowerCase();
-    const visibles = cr.filter(x =>
-      (filtro.sesion === 'todas' || String(x.sesion) === filtro.sesion) &&
-      (!q || [x.titulo, x.texto, x.lugar, x.cita].join(' ').toLowerCase().includes(q)));
-    const porSesion = sesiones.map(n => [n, visibles.filter(x => x.sesion === n).sort((a, b) => (a.t || 0) - (b.t || 0))]).filter(([, l]) => l.length);
-    const titulos = (datos.campana && datos.campana.sesiones) || {};
-    // Numeración corrida de toda la campaña, en el orden en que pasó.
-    const orden = cr.slice().sort((a, b) => (a.sesion - b.sesion) || ((a.t || 0) - (b.t || 0)));
-    numeroEv = new Map(orden.map((x, i) => [x.id, i + 1]));
-
-    main.innerHTML = `
-      <div class="herramientas">
-        <div class="segmento" role="group" aria-label="Filtrar por sesión">
-          <button type="button" aria-pressed="${filtro.sesion === 'todas'}" data-sesion="todas">Todas</button>
-          ${sesiones.slice().reverse().map(n => `<button type="button" aria-pressed="${filtro.sesion === String(n)}" data-sesion="${n}">${ROMANO(n)}</button>`).join('')}
-        </div>
-        <input class="entrada" type="search" placeholder="Buscar en la crónica" aria-label="Buscar en la crónica" value="${e(filtro.texto)}" data-buscar>
-        ${esDm ? `<button class="boton boton--primario boton--chico empuja" type="button" data-nuevo-evento>${F.icono('mas')}Acontecimiento</button>` : ''}
-      </div>
-      ${porSesion.length ? `<div class="cronica">${porSesion.map(([n, lista]) => `
-        <section class="sesion" aria-label="Sesión ${n}">
-          <header class="sesion__cab"><span class="sesion__num" aria-hidden="true">${ROMANO(n)}</span><h2 class="sesion__titulo"><small>Sesión ${String(n).padStart(2, '0')} · ${lista.length} ${lista.length === 1 ? 'acontecimiento' : 'acontecimientos'}</small>${e(titulos[n] || 'Sesión ' + n)}</h2></header>
-          <div class="linea">${lista.map(evento).join('')}</div>
-        </section>`).join('')}</div>`
-        : `<div class="vacio"><h2>${q ? 'Nada coincide' : 'La historia empieza aquí'}</h2><p>${q ? 'Prueba con otras palabras.' : esDm ? 'Registra el primer acontecimiento de la campaña.' : 'Cuando el DM registre lo que pasa en las sesiones, aparecerá aquí.'}</p>${esDm && !q ? `<div class="vacio__acciones"><button class="boton boton--primario" type="button" data-nuevo-evento>${F.icono('mas')}Primer acontecimiento</button></div>` : ''}</div>`}`;
-
-    const buscar = main.querySelector('[data-buscar]');
-    buscar.addEventListener('input', () => { filtro.texto = buscar.value; const pos = buscar.selectionStart; panelCronica(); const b = main.querySelector('[data-buscar]'); b.focus(); b.setSelectionRange(pos, pos); });
-  }
-  let numeroEv = new Map(), vivoCr = null;
-  function evento(x) {
-    const enlaces = (x.enlaces || []).map(pjPorId).filter(Boolean);
-    return `
-      <article class="evento evento--${e(x.tipo)}${x.oculto ? ' evento--oculto' : ''}${x.img ? ' evento--conimg' : ''}">
-        <span class="evento__n" aria-hidden="true">${numeroEv.get(x.id) || ''}</span>
-        <div class="evento__panel">
-        <div class="evento__meta">
-          <span class="chip chip--${e(x.tipo)}">${e(TIPOS[x.tipo] || x.tipo)}</span>
-          ${x.oculto ? '<span class="chip chip--oculto">Solo DM</span>' : ''}
-          ${x.lugar ? `<span>${e(x.lugar)}</span>` : ''}
-          ${esDm ? `<span class="evento__acciones">
-            <button class="boton boton--fantasma boton--chico boton--icono" type="button" data-proyectar-evento="${e(x.id)}" aria-label="Proyectar" title="Mostrar en el proyector">${F.icono('proyectar')}</button>
-            <button class="boton boton--fantasma boton--chico boton--icono" type="button" data-ocultar="${e(x.id)}" aria-label="${x.oculto ? 'Mostrar a los jugadores' : 'Ocultar a los jugadores'}" title="${x.oculto ? 'Mostrar a los jugadores' : 'Ocultar a los jugadores'}">${F.icono(x.oculto ? 'ojoNo' : 'ojo')}</button>
-            <button class="boton boton--fantasma boton--chico boton--icono" type="button" data-editar-evento="${e(x.id)}" aria-label="Editar">${F.icono('editar')}</button>
-            <button class="boton boton--fantasma boton--chico boton--icono" type="button" data-borrar-evento="${e(x.id)}" aria-label="Borrar">${F.icono('borrar')}</button>
-          </span>` : ''}
-        </div>
-        <h3>${e(x.titulo)}</h3>
-        ${x.texto ? `<p class="evento__texto">${e(x.texto)}</p>` : ''}
-        ${x.cita ? `<blockquote class="evento__cita">${e(x.cita)}</blockquote>` : ''}
-        ${enlaces.length ? `<div class="enlaces">${enlaces.map(p => `<button class="enlace-pj" type="button" data-ficha="${e(p.id)}"><span class="mono">${p.img ? `<img src="${e(p.img)}" alt="">` : e(p.nombre.charAt(0))}</span>${e(p.nombre)}</button>`).join('')}</div>` : ''}
-        </div>
-        ${x.img ? `<figure class="evento__img"><img src="${e(x.img)}" alt="" loading="lazy"></figure>` : ''}
-      </article>`;
-  }
-
-  /* Diálogo de acontecimiento */
-  const dlgEv = F.dialogo($('#evento'));
-  const formEv = dlgEv.querySelector('form');
-  formEv.tipo.innerHTML = Object.entries(TIPOS).map(([k, t]) => `<option value="${k}">${t}</option>`).join('');
-  let editandoEv = null, imgEv = '';
-  const pintarImgEv = () => { const c = dlgEv.querySelector('[data-ev-img]'); c.innerHTML = imgEv ? `<img src="${e(imgEv)}" alt="">` : F.icono('imagen'); dlgEv.querySelector('[data-ev-quitar]').hidden = !imgEv; };
-  dlgEv.querySelector('#ev-img').addEventListener('change', async ev => {
-    const f = ev.target.files[0]; if (!f) return;
-    const aviso = formEv.querySelector('.aviso'); aviso.textContent = 'Subiendo imagen…';
-    try { imgEv = (await F.subirImagen(id, f, 1600, 'image/jpeg')).url; aviso.textContent = ''; pintarImgEv(); }
-    catch (err) { aviso.textContent = 'No se pudo subir la imagen: ' + err.message; }
-  });
-  dlgEv.querySelector('[data-ev-quitar]').addEventListener('click', () => { imgEv = ''; pintarImgEv(); });
-  function abrirEvento(x) {
-    editandoEv = x || null; imgEv = (x && x.img) || '';
-    formEv.reset(); pintarImgEv();
-    dlgEv.querySelector('.aviso').textContent = '';
-    $('#evento-titulo').textContent = x ? 'Editar acontecimiento' : 'Nuevo acontecimiento';
-    const ultima = Math.max(1, ...(datos.cronica || []).map(c => c.sesion || 1));
-    const ses = x ? x.sesion : (filtro.sesion !== 'todas' ? Number(filtro.sesion) : ultima);
-    formEv.sesion.value = ses;
-    formEv.sesionTitulo.value = ((datos.campana || {}).sesiones || {})[ses] || '';
-    formEv.tipo.value = x ? x.tipo : 'escena';
-    for (const k of ['titulo', 'lugar', 'texto', 'cita']) formEv[k].value = x ? x[k] || '' : '';
-    formEv.oculto.checked = !!(x && x.oculto);
-    const sel = new Set(x ? x.enlaces || [] : []);
-    const orden = (datos.personajes || []).slice().sort((a, b) => (a.tipo === 'pj' ? 0 : 1) - (b.tipo === 'pj' ? 0 : 1) || a.nombre.localeCompare(b.nombre));
-    dlgEv.querySelector('[data-enlaces]').innerHTML = orden.map(p => `<label><input type="checkbox" name="enlace" value="${e(p.id)}"${sel.has(p.id) ? ' checked' : ''}>${e(p.nombre)}</label>`).join('') || '<span class="suave">Aún no hay personajes.</span>';
-    dlgEv.showModal(); formEv.titulo.focus();
-  }
-  formEv.sesion.addEventListener('input', () => { formEv.sesionTitulo.value = ((datos.campana || {}).sesiones || {})[formEv.sesion.value] || ''; });
-  formEv.addEventListener('submit', ev => {
-    ev.preventDefault();
-    const aviso = formEv.querySelector('.aviso');
-    const invalido = [...formEv.querySelectorAll('.entrada')].find(i => !i.checkValidity());
-    if (invalido) { invalido.focus(); aviso.textContent = invalido.validationMessage; return; }
-    const sesion = Math.max(1, parseInt(formEv.sesion.value, 10) || 1);
-    const nuevo = {
-      sesion, tipo: formEv.tipo.value, titulo: formEv.titulo.value.trim(), lugar: formEv.lugar.value.trim(), texto: formEv.texto.value.trim(), cita: formEv.cita.value.trim(),
-      enlaces: [...formEv.querySelectorAll('[name=enlace]:checked')].map(i => i.value), oculto: formEv.oculto.checked, img: imgEv
-    };
-    const titSes = formEv.sesionTitulo.value.trim();
-    guardar(d => {
-      d.campana = d.campana || {}; d.campana.sesiones = d.campana.sesiones || {};
-      if (titSes) d.campana.sesiones[sesion] = titSes;
-      d.campana.sesionActual = Math.max(d.campana.sesionActual || 1, sesion);
-      if (editandoEv) Object.assign(d.cronica.find(c => c.id === editandoEv.id), nuevo);
-      else d.cronica.push({ id: uid('ev'), t: Date.now(), ...nuevo });
-    }, editandoEv ? 'Acontecimiento actualizado' : 'Acontecimiento añadido');
-    dlgEv.close();
-  });
 
   /* ---------- Personajes ---------- */
   function panelPersonajes() {
@@ -329,45 +242,34 @@
 
   /* ---------- Grupo y ajustes ---------- */
   function panelGrupo() {
-    const pjs = (datos.personajes || []).filter(p => p.tipo === 'pj'), jug = datos.jugadores || {};
-    const jugadores = miembros.filter(m => m.rol === 'jugador');
-    const lleva = idp => Object.keys(jug).find(k => jug[k] === idp) || '';
+    const jug = datos.jugadores || {};
+    const pjDe = u => pjPorId(jug[u]);
     main.innerHTML = `
       <div class="ajustes">
         ${esDm ? `
         <section class="panel">
           <h2>Invitar al grupo</h2>
-          <p class="suave">Comparte el código y la contraseña de la campaña. Quien se una entra como jugador y solo puede leer.</p>
+          <p class="suave">Comparte el código y la contraseña de la campaña. Quien se una entra como jugador y elige su personaje desde «Mi personaje»; tú apruebas la elección.</p>
           <div class="codigo"><span>${e(resumen.codigo)}</span><button class="boton boton--fantasma boton--icono" type="button" data-copiar aria-label="Copiar código">${F.icono('copiar')}</button></div>
         </section>` : ''}
         <section class="panel">
           <h2>Grupo</h2>
-          <ul class="miembros">${miembros.map(m => `<li><span>${e(m.usuario)}${m.usuario === usuario.usuario ? ' <span class="suave">(tú)</span>' : ''}</span><span class="chip ${m.rol === 'dm' ? 'chip--dm' : ''}">${m.rol === 'dm' ? 'DM' : 'Jugador'}</span></li>`).join('')}</ul>
+          <ul class="miembros">${miembros.map(m => { const p = m.rol === 'jugador' && pjDe(m.usuario); return `<li><span>${e(m.usuario)}${m.usuario === usuario.usuario ? ' <span class="suave">(tú)</span>' : ''}${p ? `<small class="miembros__pj">lleva a ${e(p.nombre)}</small>` : ''}</span><span class="miembros__acc">${esDm && p ? `<button class="boton boton--fantasma boton--chico" type="button" data-liberar="${e(m.usuario)}" title="Deja libre a ${e(p.nombre)}">Liberar</button>` : ''}<span class="chip ${m.rol === 'dm' ? 'chip--dm' : ''}">${m.rol === 'dm' ? 'DM' : 'Jugador'}</span></span></li>`; }).join('')}</ul>
         </section>
         ${esDm ? `
         <section class="panel">
-          <h2>Personajes y móviles</h2>
-          <p class="suave">Cada jugador ve en su teléfono la ficha, la vida, los conjuros y el inventario de su personaje. Lo elige al entrar, o lo repartes tú aquí. Lo que pidan te llega como aviso para aprobarlo.</p>
-          <ul class="reparto">${pjs.map(p => `<li><b>${e(p.nombre)}</b>
-            <select class="entrada" data-asignar="${e(p.id)}" aria-label="Quién lleva a ${e(p.nombre)}"><option value="">Sin jugador</option>${jugadores.map(m => `<option value="${e(m.usuario)}"${lleva(p.id) === m.usuario ? ' selected' : ''}>${e(m.usuario)}</option>`).join('')}</select>
-            <span class="reparto__acc"><a class="boton boton--secundario boton--chico" href="jugador.html?id=${encodeURIComponent(id)}&pj=${encodeURIComponent(p.id)}">${F.icono('movil')}Ver su móvil</a></span></li>`).join('') || '<li class="suave">Aún no hay personajes jugadores.</li>'}</ul>
-          <button class="boton boton--secundario" type="button" data-pj-prueba>${F.icono('mas')}Crear un PJ de prueba</button>
-          <p class="suave">El PJ de prueba se abre en modo prueba: actúas como jugador y las peticiones te llegan aquí y a la mesa.</p>
-        </section>
-        <section class="panel">
-          <h2>Mesa y proyector</h2>
-          <p class="suave">Prepara escenas sobre el mapa, presenta jefes y lugares y muestra los resultados a toda la mesa.</p>
-          <a class="boton boton--primario" href="mesa.html?id=${encodeURIComponent(id)}">${F.icono('mesa')}Abrir la mesa</a>
-        </section>
-        <section class="panel">
           <h2>Campaña</h2>
-          <p class="suave">Nombre, ambientación, sinopsis y contraseña.</p>
+          <p class="suave">Nombre, ambientación, descripción para los jugadores y contraseña.</p>
           <button class="boton boton--secundario" type="button" data-editar-camp>${F.icono('editar')}Editar campaña</button>
         </section>
         <section class="panel">
-          <h2>Importar copia</h2>
-          <p class="suave">Sube la copia que exportaste en la herramienta de mesa (⋯ → Exportar copia). Reemplaza la crónica, los personajes, los hilos y los mapas de esta campaña.</p>
-          <label class="boton boton--secundario">${F.icono('subir')}Elegir archivo .json<input class="oculto-visual" type="file" accept="application/json,.json" data-importar></label>
+          <h2>Guardar partida</h2>
+          <p class="suave">Descarga toda la campaña en un .zip: crónica, personajes, mapas, escenas, inventarios e imágenes. Mientras estemos en beta, guárdala de vez en cuando; con ella puedes recuperar la partida en otra versión.</p>
+          <div class="fila-acciones">
+            <a class="boton boton--primario" href="api/campanas/${encodeURIComponent(id)}/copia" download>${F.icono('abajo')}Descargar .zip</a>
+            <label class="boton boton--secundario">${F.icono('subir')}Cargar partida<input class="oculto-visual" type="file" accept=".zip,application/zip,application/json,.json" data-importar></label>
+          </div>
+          <p class="suave">Cargar una partida reemplaza el contenido actual de esta campaña. Acepta el .zip de aquí y las copias .json de la herramienta clásica.</p>
         </section>` : ''}
       </div>`;
   }
@@ -391,29 +293,16 @@
     const t = ev.target.closest('button, [data-ficha]');
     if (!t) return;
     const d = t.dataset;
-    if (d.sesion) { filtro.sesion = d.sesion; panelCronica(); return; }
     if (d.tipo) { filtro.tipo = d.tipo; panelPersonajes(); return; }
     if (d.ficha) return verFicha(d.ficha);
-    if ('nuevoEvento' in d) return abrirEvento();
-    if (d.proyectarEvento) {
-      // El control del proyector es compartido con la mesa: aquí solo se le dice qué acontecimiento mostrar.
-      if (!vivoCr) { F.vivo.preparar(datos); vivoCr = F.vivo.crear({ id, datos: () => datos, resumen }); }
-      vivoCr.poner({ modo: 'cronica', eventoId: d.proyectarEvento });
-      return F.toast('En el proyector. Si no lo tienes abierto, ábrelo desde Mesa y proyección.');
-    }
-    if (d.editarEvento) return abrirEvento(datos.cronica.find(c => c.id === d.editarEvento));
-    if (d.ocultar) return guardar(dd => { const c = dd.cronica.find(x => x.id === d.ocultar); c.oculto = !c.oculto; }, 'Visibilidad cambiada');
-    if (d.borrarEvento) { if (confirm('¿Borrar este acontecimiento?')) guardar(dd => { dd.cronica = dd.cronica.filter(x => x.id !== d.borrarEvento); }, 'Acontecimiento borrado'); return; }
     if ('nuevoPj' in d) { formNp.reset(); formNp.querySelector('.aviso').textContent = ''; dlgNp.showModal(); return; }
     if (d.hilo) return;
     if (d.borrarHilo) return guardar(dd => { dd.hilos = dd.hilos.filter(h => h.id !== d.borrarHilo); }, 'Hilo borrado');
-    if ('pjPrueba' in d) {
-      const f = TFF.npc.generar({ tipo: 'pj', clase: 'mago', nivel: 3, nombre: 'PJ de prueba', rol: 'Para probar el móvil del jugador' });
-      const ob = (n, tipo, cant, nota, lugar) => ({ id: uid('ob'), n, tipo, cant, nota: nota || '', lugar: lugar || 'mochila' });
-      f.inv = [ob('Bastón', 'arma', 1, '1d6 contundente', 'equipado'), ob('Poción de curación', 'pocion', 2, 'Cura 2d4+2'), ob('Pergamino de Proyectil mágico', 'pergamino', 1), ob('Raciones', 'comida', 5), ob('Antorcha', 'herramienta', 3), ob('Monedas de oro', 'tesoro', 15)];
-      await guardar(dd => { dd.personajes.push(f); }, 'PJ de prueba creado');
-      location.href = `jugador.html?id=${encodeURIComponent(id)}&pj=${encodeURIComponent(f.id)}&simular=1&ver=mochila`;
-      return;
+    if (d.liberar) {
+      if (!confirm('¿Dejar libre su personaje? Podrá pedir otro.')) return;
+      try { const r = await F.api('campanas/' + encodeURIComponent(id) + '/jugador', { metodo: 'POST', datos: { accion: 'asignar', usuario: d.liberar, pj: '' } }); datos.jugadores = r.jugadores; F.toast('Personaje libre'); }
+      catch (err) { F.toast(err.message); }
+      return panelGrupo();
     }
     if ('copiar' in d) { try { await navigator.clipboard.writeText(resumen.codigo); F.toast('Código copiado'); } catch { F.toast('No se pudo copiar. Selecciónalo a mano.'); } return; }
     if ('editarCamp' in d) {
@@ -424,20 +313,12 @@
   });
   main.addEventListener('change', async ev => {
     const t = ev.target;
-    if (t.dataset.asignar) {
-      const antes = Object.keys(datos.jugadores || {}).find(k => datos.jugadores[k] === t.dataset.asignar);
-      if (!t.value && !antes) return;
-      try {
-        const r = await F.api('campanas/' + encodeURIComponent(id) + '/jugador', { metodo: 'POST', datos: { accion: 'asignar', usuario: t.value || antes, pj: t.value ? t.dataset.asignar : '' } });
-        datos.jugadores = r.jugadores; F.toast(t.value ? 'Personaje asignado' : 'Personaje libre');
-      } catch (err) { F.toast(err.message); }
-      return panelGrupo();
-    }
     if (t.dataset.hilo) return guardar(dd => { const h = dd.hilos.find(x => x.id === t.dataset.hilo); h.estado = t.checked ? 'resuelto' : 'abierto'; });
     if ('importar' in t.dataset && t.files[0]) {
       if (!confirm('Esto reemplaza el contenido actual de la campaña por el de la copia. ¿Continuar?')) { t.value = ''; return; }
       try {
-        const copia = JSON.parse(await t.files[0].text());
+        const archivo = t.files[0];
+        const copia = /\.zip$/i.test(archivo.name) || archivo.type.includes('zip') ? await leerZip(archivo) : JSON.parse(await archivo.text());
         F.toast('Importando…');
         const r = await F.api('campanas/' + encodeURIComponent(id) + '/importar', { metodo: 'POST', datos: copia });
         F.toast(`Copia importada${r.imagenes ? ` con ${r.imagenes} imágenes` : ''}. Recargando…`);
@@ -454,6 +335,24 @@
       dlgVer.close();
     }
   });
+
+  /* Lee el .zip de «Guardar partida» (archivos sin comprimir) y lo convierte al formato de importación. */
+  async function leerZip(archivo) {
+    const buf = new Uint8Array(await archivo.arrayBuffer()), v = new DataView(buf.buffer), dec = new TextDecoder();
+    const archivos = {}; let i = 0;
+    while (i + 30 <= buf.length && v.getUint32(i, true) === 0x04034b50) {
+      const metodo = v.getUint16(i + 8, true), tam = v.getUint32(i + 18, true), ln = v.getUint16(i + 26, true), lx = v.getUint16(i + 28, true);
+      const nombre = dec.decode(buf.subarray(i + 30, i + 30 + ln)), ini = i + 30 + ln + lx;
+      if (metodo !== 0) throw new Error('Ese .zip no lo creó The Field Forge (está comprimido).');
+      archivos[nombre] = buf.subarray(ini, ini + tam); i = ini + tam;
+    }
+    if (!archivos['partida.json']) throw new Error('El .zip no contiene una partida de The Field Forge.');
+    const copia = JSON.parse(dec.decode(archivos['partida.json']));
+    const tipo = n => /\.png$/i.test(n) ? 'image/png' : /\.webp$/i.test(n) ? 'image/webp' : /\.gif$/i.test(n) ? 'image/gif' : 'image/jpeg';
+    copia.imagenes = {};
+    for (const [n, b] of Object.entries(archivos)) if (n.startsWith('img/')) copia.imagenes[n] = await new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(new Blob([b], { type: tipo(n) })); });
+    return copia;
+  }
 
   /* ---------- Inicio ---------- */
   // Peticiones de los jugadores y lo que cambian desde su móvil.

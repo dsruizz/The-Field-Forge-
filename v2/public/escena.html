@@ -28,14 +28,20 @@
     <div class="mbar__der">
       <span class="mbar__estado suave" data-guardado aria-live="polite"></span>
       <button class="herr" type="button" data-vivo aria-pressed="false" title="Lleva esta escena al proyector"></button>
-      <button class="boton boton--primario boton--chico" type="button" data-proyector></button>
+      <div class="zoom" role="group" aria-label="Zoom del mapa" data-zoom-caja>
+        <button class="herr herr--icono" type="button" data-zoom="-1" aria-label="Alejar" title="Alejar">−</button>
+        <button class="herr zoom__val" type="button" data-zoom="0" title="Ver el mapa entero" data-zoom-val>100%</button>
+        <button class="herr herr--icono" type="button" data-zoom="1" aria-label="Acercar" title="Acercar (también con la rueda del ratón)">+</button>
+      </div>
       <button class="herr herr--icono" type="button" data-panel aria-pressed="true" aria-label="Mostrar u ocultar el panel" title="Mostrar u ocultar el panel"></button>
     </div>
   </header>
 
   <div class="mesa" data-mesa>
     <main class="mesa__escenario">
-      <div class="mesa__caja"><div data-tablero></div></div>
+      <div class="mesa__caja"><div data-tablero></div>
+        <button class="subir-mapa" type="button" data-anadir="fondo" hidden data-subir-vacio></button>
+      </div>
       <p class="mesa__pista suave" data-pista></p>
     </main>
     <aside class="dock" data-dock aria-label="Panel">
@@ -44,6 +50,24 @@
   </div>
 
   <input type="file" accept="image/*" hidden data-archivo>
+
+  <dialog class="hoja hoja--ancha" id="recorte" aria-labelledby="rc-titulo">
+    <div class="hoja__in form">
+      <div class="hoja__cab"><h2 id="rc-titulo">Recortar y girar el mapa</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <p class="suave rc__ayuda">Arrastra sobre la imagen para marcar el recorte; arrastra dentro del marco para moverlo.</p>
+      <div class="rc__lienzo"><canvas data-rc-lienzo></canvas></div>
+      <div class="fila-btn">
+        <button class="boton boton--secundario boton--chico" type="button" data-rc="izq"></button>
+        <button class="boton boton--secundario boton--chico" type="button" data-rc="der"></button>
+        <button class="boton boton--secundario boton--chico" type="button" data-rc="169">Encajar en 16:9</button>
+        <button class="boton boton--fantasma boton--chico" type="button" data-rc="todo">Sin recorte</button>
+      </div>
+      <div class="hoja__pie">
+        <button class="boton boton--fantasma" type="button" data-cerrar-texto>Cancelar</button>
+        <button class="boton boton--primario" type="button" data-rc="aplicar">Usar este mapa</button>
+      </div>
+    </div>
+  </dialog>
 
   <script src="js/editor.js"></script>
 </body>
