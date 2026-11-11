@@ -72,6 +72,7 @@
     libreta: '<path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6V3ZM6 3v18M9.5 8h6M9.5 12h6"/>',
     forja: '<path d="M4 15h11l3-4H8L4 15ZM9 15v3M6 21h12M15 18v3M9 18v3M12 4v4M9 6l1.5 2.5M15 6l-1.5 2.5"/>',
     vela: '<path d="M10 10h4v11h-4zM12 3c1.5 2 1.5 3.5 0 5-1.5-1.5-1.5-3 0-5Z"/>',
+    campanilla: '<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7 2.5 7h-17S6 15 6 9Z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
     giraizq: '<path d="M3 4v6h6"/><path d="M3.5 15a9 9 0 1 0 2.1-9.4L3 10"/>',
     girader: '<path d="M21 4v6h-6"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L21 10"/>',
     recortar: '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>'

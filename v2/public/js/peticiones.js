@@ -11,23 +11,49 @@
     function parchear(parches) {
       (parches || []).forEach(x => { const p = pj(x.id); if (!p) return; for (const [k, v] of Object.entries(x.campos)) { if (v === undefined || v === null) delete p[k]; else p[k] = v; } });
     }
+    /* Botón flotante, como el de ayuda de muchas webs: siempre a mano y sin tapar nada.
+       Late cuando hay algo sin contestar; al abrirlo sale un cuadro pequeño con dos listas plegables. */
+    if (caja) caja.hidden = true;
+    const flot = document.createElement('div');
+    flot.className = 'pflot';
+    flot.innerHTML = `<div class="pflot__panel" hidden role="dialog" aria-label="Peticiones de los jugadores"></div>
+      <button class="pflot__boton" type="button" aria-expanded="false" aria-label="Peticiones de los jugadores">${F.icono('campanilla')}<i hidden></i></button>`;
+    document.body.append(flot);
+    const panel = flot.querySelector('.pflot__panel'), boton = flot.querySelector('.pflot__boton');
+    let hechas = [], abiertas = { pend: true, hechas: false };
+    const ESTADO = { aprobada: 'Aprobada', rechazada: 'Rechazada' };
+    const fila = (x, resuelta) => {
+      const p = x.tipo === 'pj' ? (pj(x.pjCamp) || pj(x.pj) || { nombre: x.quien, img: x.img }) : (pj(x.pj) || { nombre: x.quien });
+      return `<li class="pet${resuelta ? ' pet--hecha pet--' + e(x.estado) : ''}">
+        ${F.ficha.retrato(p, 'pet__retrato')}
+        <p><b>${x.tipo === 'pj' ? e(x.usuario) : e(p.nombre)}</b><span>${F.icono(ICONO[x.tipo] || 'objeto')}${e(x.texto)}</span>
+          <small>${resuelta ? `${ESTADO[x.estado] || 'Resuelta'} · ${e(F.hace(x.resuelta || x.t))}` : `${x.tipo === 'pj' ? (x.pjCamp ? 'Personaje de la campaña' : 'Trae su propio personaje') : e(x.usuario)} · ${e(F.hace(x.t))}`}${x.nuevo && x.nuevo.nota ? ' · ' + e(x.nuevo.nota) : ''}</small></p>
+        ${resuelta ? '' : `<div class="pet__acc">
+          ${x.tipo === 'pj' ? `<button type="button" data-pet-ficha="${e(x.id)}" title="Ver la ficha" aria-label="Ver la ficha">${F.icono('ojo')}</button>` : ''}
+          <button type="button" class="pet__ok" data-pet="${e(x.id)}" data-ok="1" title="Aprobar" aria-label="Aprobar">${F.icono('hecho')}</button>
+          <button type="button" data-pet="${e(x.id)}" title="Rechazar" aria-label="Rechazar">${F.icono('cerrar')}</button>
+        </div>`}
+      </li>`;
+    };
     function pintar() {
-      caja.hidden = !lista.length;
-      caja.innerHTML = lista.length ? `
-        <h2 class="pets__tit">${F.icono('movil')}Piden permiso <i>${lista.length}</i></h2>
-        <ul class="pets__lista">${lista.map(x => { const p = x.tipo === 'pj' ? (pj(x.pjCamp) || { nombre: x.quien, img: x.img }) : (pj(x.pj) || { nombre: x.quien }); return `
-          <li class="pet${x.tipo === 'pj' ? ' pet--pj' : ''}">
-            ${F.ficha.retrato(p, 'pet__retrato')}
-            <p><b>${x.tipo === 'pj' ? e(x.usuario) : e(p.nombre)}</b><span>${F.icono(ICONO[x.tipo] || 'objeto')}${e(x.texto)}</span><small>${x.tipo === 'pj' ? (x.pjCamp ? 'Personaje de la campaña' : 'Su propio personaje: revisa la ficha antes de aceptar') : e(x.usuario)} · ${e(F.hace(x.t))}${x.nuevo && x.nuevo.nota ? ' · ' + e(x.nuevo.nota) : ''}</small></p>
-            <div class="pet__acc">
-              ${x.tipo === 'pj' ? `<button class="boton boton--chico boton--secundario" type="button" data-pet-ficha="${e(x.id)}">${F.icono('ojo')}Ver ficha</button>` : ''}
-              <button class="boton boton--chico boton--primario" type="button" data-pet="${e(x.id)}" data-ok="1">${F.icono('hecho')}Aprobar</button>
-              <button class="boton boton--chico boton--secundario" type="button" data-pet="${e(x.id)}">Rechazar</button>
-            </div>
-          </li>`; }).join('')}</ul>` : '';
+      const n = lista.length, cuenta = boton.querySelector('i');
+      cuenta.hidden = !n; cuenta.textContent = n;
+      boton.classList.toggle('is-llama', n > 0);
+      boton.title = n ? `${n} ${n === 1 ? 'petición' : 'peticiones'} sin contestar` : 'Peticiones de los jugadores';
+      panel.innerHTML = `
+        <div class="pflot__cab"><b>Peticiones</b><button type="button" data-pflot-cerrar aria-label="Cerrar">${F.icono('cerrar')}</button></div>
+        <details class="pflot__grupo" data-grupo="pend"${abiertas.pend ? ' open' : ''}><summary>Sin contestar <i>${n}</i></summary>
+          ${n ? `<ul>${lista.map(x => fila(x, false)).join('')}</ul>` : '<p class="pflot__vacio">Nada pendiente.</p>'}</details>
+        <details class="pflot__grupo" data-grupo="hechas"${abiertas.hechas ? ' open' : ''}><summary>Contestadas <i>${hechas.length}</i></summary>
+          ${hechas.length ? `<ul>${hechas.map(x => fila(x, true)).join('')}</ul>` : '<p class="pflot__vacio">Aún no has contestado ninguna.</p>'}</details>`;
     }
+    const abrir = si => { panel.hidden = !si; boton.setAttribute('aria-expanded', String(si)); };
+    boton.addEventListener('click', () => abrir(panel.hidden));
+    panel.addEventListener('toggle', ev => { const g = ev.target.dataset && ev.target.dataset.grupo; if (g) abiertas[g] = ev.target.open; }, true);
+    document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !panel.hidden && !document.querySelector('dialog[open]')) abrir(false); });
+    document.addEventListener('pointerdown', ev => { if (!panel.hidden && !flot.contains(ev.target) && !ev.target.closest('dialog')) abrir(false); });
     async function cargar() {
-      try { const r = await F.api(ruta); lista = r.peticiones; datos().jugadores = r.jugadores; parchear(r.parches); pintar(); alCambiar && alCambiar(); } catch { /* se reintenta al reconectar */ }
+      try { const r = await F.api(ruta); lista = r.peticiones; hechas = r.contestadas || []; datos().jugadores = r.jugadores; parchear(r.parches); pintar(); alCambiar && alCambiar(); } catch { /* se reintenta al reconectar */ }
     }
     // Ficha de quien pide entrar: se revisa antes de aceptar.
     let dlg = null;
@@ -45,15 +71,16 @@
         dlg.showModal();
       } catch (err) { F.toast(err.message); }
     }
-    caja.addEventListener('click', async ev => {
+    panel.addEventListener('click', async ev => {
+      if (ev.target.closest('[data-pflot-cerrar]')) return abrir(false);
       const f = ev.target.closest('[data-pet-ficha]'); if (f) return verFicha(f.dataset.petFicha);
       const b = ev.target.closest('[data-pet]'); if (b) resolver(b);
     });
     async function resolver(b) {
-      caja.querySelectorAll('button').forEach(x => { x.disabled = true; });
+      panel.querySelectorAll('.pet button').forEach(x => { x.disabled = true; });
       try {
         const r = await F.api(ruta, { metodo: 'POST', datos: { id: b.dataset.pet, ok: !!b.dataset.ok } });
-        parchear(r.parches); lista = r.peticiones;
+        parchear(r.parches); lista = r.peticiones; hechas = r.contestadas || hechas;
         if (r.nuevo && !pj(r.nuevo.id)) { datos().personajes.push(r.nuevo); alRev && alRev(r.rev); }
         F.toast(r.estado === 'rechazada' && r.aviso ? 'No se pudo aplicar: ' + r.aviso : r.estado === 'aprobada' ? 'Aprobada' + (r.aviso ? ': ' + r.aviso : '') : 'Rechazada');
       } catch (err) { F.toast(err.message); await cargar(); }
@@ -67,6 +94,7 @@
       parchear(d.parches);
       if (d.jugadores) datos().jugadores = d.jugadores;
       if (d.peticiones) { if (d.peticiones.length > lista.length) F.toast('Nueva petición de un jugador'); lista = d.peticiones; }
+      if (d.contestadas) hechas = d.contestadas;
       pintar(); alCambiar && alCambiar();
     });
     cargar();

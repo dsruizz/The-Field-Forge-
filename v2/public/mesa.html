@@ -25,7 +25,7 @@
 <body class="pag-consola">
   <header class="barra">
     <nav class="envoltura barra__in" aria-label="Principal">
-      <a class="barra__marca" href="campanas.html" aria-label="Mis campañas"><span class="logo"></span></a>
+      <a class="barra__marca" href="./" aria-label="The Field Forge, inicio"><span class="logo"></span></a>
       <div class="barra__nav" data-nav></div>
       <div class="barra__acciones">
         <button class="boton boton--fantasma boton--icono" type="button" data-icono-tema></button>
@@ -98,6 +98,7 @@
     <div class="hoja__in">
       <div class="hoja__cab"><span></span><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
       <div data-cuerpo></div>
+      <div class="hoja__pie" data-pie></div>
     </div>
   </dialog>
 
@@ -146,6 +147,30 @@
     </form>
   </dialog>
 
+
+  <!-- Edición rápida de quien está en escena -->
+  <dialog class="hoja" id="editar-pj" aria-labelledby="ep-titulo">
+    <form class="hoja__in form" method="dialog" novalidate>
+      <div class="hoja__cab"><h2 id="ep-titulo">Editar personaje</h2><button class="boton boton--fantasma boton--icono" type="button" data-cerrar aria-label="Cerrar"></button></div>
+      <div class="retrato-carga">
+        <div class="ficha__retrato" data-retrato></div>
+        <div class="campo"><label for="ep-img">Foto</label><input class="entrada" id="ep-img" type="file" accept="image/*"><button class="boton boton--fantasma boton--chico" type="button" data-quitar-img>Quitar foto</button></div>
+      </div>
+      <div class="fila">
+        <div class="campo"><label for="ep-nombre">Nombre</label><input class="entrada" id="ep-nombre" name="nombre" required maxlength="80" autocomplete="off"></div>
+        <div class="campo"><label for="ep-tipo">Tipo</label><select class="entrada" id="ep-tipo" name="tipo"><option value="pj">PJ</option><option value="npc">NPC</option><option value="enemigo">Enemigo</option></select></div>
+      </div>
+      <div class="fila">
+        <div class="campo"><label for="ep-nivel">Nivel</label><input class="entrada" id="ep-nivel" name="nivel" type="number" min="1" max="20"></div>
+        <div class="campo"><label for="ep-ca">CA</label><input class="entrada" id="ep-ca" name="ca" type="number" min="1" max="40"></div>
+        <div class="campo"><label for="ep-pgmax">PG máximos</label><input class="entrada" id="ep-pgmax" name="pgMax" type="number" min="1" max="999"></div>
+      </div>
+      <div class="campo"><label for="ep-rol">Rol en la historia</label><input class="entrada" id="ep-rol" name="rol" maxlength="140"></div>
+      <div class="campo"><label for="ep-notas">Notas del DM</label><textarea class="entrada" id="ep-notas" name="notas" maxlength="4000"></textarea></div>
+      <p class="aviso" role="alert"></p>
+      <div class="hoja__pie"><button class="boton boton--secundario" type="button" data-cerrar-texto>Cancelar</button><button class="boton boton--primario" type="submit">Guardar</button></div>
+    </form>
+  </dialog>
 
   <!-- Ventanas internas: el móvil de un jugador y el editor de mapas -->
   <dialog class="ventana ventana--movil" id="movil-dlg" aria-label="Móvil del jugador">

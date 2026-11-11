@@ -269,7 +269,8 @@ function resumenCampana(c, rol) {
   return {
     id: c.id, nombre: c.nombre, ambientacion: c.ambientacion, sinopsis: c.sinopsis,
     rol, dm: dm ? dm.usuario : '', jugadores, partidas: sesiones, nivelMedio, pjs: pjs.map(p => p.nombre),
-    acontecimientos: visibles.length, ultimo: ultimo ? { titulo: ultimo.titulo, sesion: ultimo.sesion } : null,
+    // La crónica es solo del DM: al jugador no le llega ni el título del último acontecimiento.
+    acontecimientos: visibles.length, ultimo: rol === 'dm' && ultimo ? { titulo: ultimo.titulo, sesion: ultimo.sesion } : null,
     actualizada: c.actualizada,
     ...(rol === 'dm' ? { codigo: c.codigo } : {})
   };
@@ -422,6 +423,8 @@ const guardarDatos = (c, d, subirRev) => {
   return rev;
 };
 const pendientes = d => (d.peticiones || []).filter(x => x.estado === 'pendiente').map(({ ficha, ...x }) => x);
+// Las últimas ya resueltas: el DM las ve aparte, en gris, para saber qué contestó.
+const contestadas = d => (d.peticiones || []).filter(x => x.estado !== 'pendiente').slice(-20).reverse().map(({ ficha, ...x }) => x);
 function podarPeticiones(d) {
   const p = d.peticiones || [];
   const resueltas = p.filter(x => x.estado !== 'pendiente').slice(-30);
@@ -484,7 +487,7 @@ function difundir(campanaId, hacer) {
 // Avisa de que cambiaron estos personajes: al DM le llega el detalle; al jugador, que vuelva a pedir lo suyo.
 function avisarCambio(campanaId, d, tocados = [], extra = {}) {
   difundir(campanaId, o => o.dm
-    ? { parches: tocados.map(p => ({ id: p.id, campos: camposJugador(p) })), peticiones: pendientes(d), jugadores: d.jugadores || {}, ...extra }
+    ? { parches: tocados.map(p => ({ id: p.id, campos: camposJugador(p) })), peticiones: pendientes(d), contestadas: contestadas(d), jugadores: d.jugadores || {}, ...extra }
     : { pj: tocados.map(p => p.id), pg: Object.fromEntries(tocados.map(p => [p.id, p.pg])), ...(extra.aviso ? { aviso: extra.aviso } : {}) });
 }
 setInterval(() => { for (const grupo of oyentes.values()) for (const o of grupo) o.res.write(': sigo aquí\n\n'); }, 20000).unref();
@@ -756,11 +759,12 @@ async function api(req, res, ruta, consulta) {
       const d = leerDatos(c);
       return json(res, 200, { ficha: pet.ficha || d.personajes.find(x => x.id === pet.pjCamp) || null });
     }
-    if (md[2] === 'peticion' && m === 'GET') { const d = leerDatos(c); return json(res, 200, { peticiones: pendientes(d), jugadores: d.jugadores || {}, parches: d.personajes.filter(p => p._tj).map(p => ({ id: p.id, campos: camposJugador(p) })) }); }
+    if (md[2] === 'peticion' && m === 'GET') { const d = leerDatos(c); return json(res, 200, { peticiones: pendientes(d), contestadas: contestadas(d), jugadores: d.jugadores || {}, parches: d.personajes.filter(p => p._tj).map(p => ({ id: p.id, campos: camposJugador(p) })) }); }
     if (md[2] === 'peticion' && m === 'POST') {
       const b = await leerCuerpo(req);
       const cc = fresca(), d = leerDatos(cc);
-      const pet = pendientes(d).find(x => x.id === b.id) || fallo(409, 'Esa petición ya estaba resuelta.');
+      // Se busca la petición real, no la copia sin ficha que se envía a la mesa: si no, el estado nunca se guardaría.
+      const pet = (d.peticiones || []).find(x => x.id === b.id && x.estado === 'pendiente') || fallo(409, 'Esa petición ya estaba resuelta.');
       let tocados = [], aviso = '';
       if (b.ok) { try { tocados = aplicarPeticion(d, pet); pet.estado = 'aprobada'; } catch (err) { if (!(err instanceof ErrorApi)) throw err; pet.estado = 'rechazada'; pet.motivo = aviso = err.message; } }
       else pet.estado = 'rechazada';
@@ -773,7 +777,7 @@ async function api(req, res, ruta, consulta) {
       const rev = guardarDatos(cc, d, !!nuevo);
       avisarCambio(cc.id, d, tocados.length ? tocados : dueno ? [dueno] : [], { ...(nuevo ? { nuevo, rev } : {}), ...(pet.resultado ? { aviso: `${pet.quien}: ${pet.resultado}` } : {}) });
       if (pet.tipo === 'pj') difundir(cc.id, o => !o.dm && { pj: ['*'] });
-      return json(res, 200, { estado: pet.estado, aviso: aviso || pet.resultado || '', parches: tocados.map(p => ({ id: p.id, campos: camposJugador(p) })), peticiones: pendientes(d), nuevo, rev });
+      return json(res, 200, { estado: pet.estado, aviso: aviso || pet.resultado || '', parches: tocados.map(p => ({ id: p.id, campos: camposJugador(p) })), peticiones: pendientes(d), contestadas: contestadas(d), nuevo, rev });
     }
     if (md[2] === 'datos' && m === 'PUT') {
       const b = await leerCuerpo(req, 12 * 1024 * 1024);
@@ -787,7 +791,7 @@ async function api(req, res, ruta, consulta) {
         const a = antes.personajes.find(x => x.id === p.id);
         if (!a) continue;
         if (a._tj && a._tj !== p._tj) for (const k of CAMPOS_JUGADOR) { if (a[k] === undefined) delete p[k]; else p[k] = a[k]; }
-        else if (p.tipo === 'pj' && (['pg', 'pgMax', 'ca', 'nivel', 'nombre', 'estado'].some(k => a[k] !== p[k]) || JSON.stringify(a.efectos || []) !== JSON.stringify(p.efectos || []))) cambiados.push(p);
+        else if (p.tipo === 'pj' && (['pg', 'pgMax', 'ca', 'nivel', 'nombre', 'estado', 'img'].some(k => a[k] !== p[k]) || JSON.stringify(a.efectos || []) !== JSON.stringify(p.efectos || []))) cambiados.push(p);
       }
       for (const k of Object.keys(d.jugadores)) if (!d.personajes.some(p => p.id === d.jugadores[k] && p.tipo === 'pj')) delete d.jugadores[k];
       const rev = guardarDatos(cc, d, true);
@@ -955,3 +959,19 @@ http.createServer(async (req, res) => {
   console.log(`The Field Forge v2 en el puerto ${PORT} (ruta pública ${BASE})`);
   console.log(`Plazas: ${MAX_USUARIOS} · Código de invitación: ${invitacion()}`);
 });
+
+/* ---------- Copia diaria de la base de datos ----------
+   Una copia completa al día en DATA_DIR/copias (se guardan las 7 últimas). Si el disco o una actualización
+   dañan forge.db, se recupera copiando encima el archivo del día que haga falta. */
+function copiaDiaria() {
+  try {
+    const dir = path.join(DATA_DIR, 'copias');
+    fs.mkdirSync(dir, { recursive: true });
+    const destino = path.join(dir, `forge-${new Date().toISOString().slice(0, 10)}.db`);
+    if (!fs.existsSync(destino)) db.exec(`VACUUM INTO '${destino.replace(/'/g, "''")}'`);
+    const viejas = fs.readdirSync(dir).filter(f => /^forge-\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort().slice(0, -7);
+    for (const f of viejas) fs.unlinkSync(path.join(dir, f));
+  } catch (err) { console.error('No se pudo hacer la copia diaria:', err.message); }
+}
+copiaDiaria();
+setInterval(copiaDiaria, 6 * 3600 * 1000).unref();

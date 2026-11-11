@@ -92,17 +92,16 @@
   const atrCon = (p, k) => (p.atr ? p.atr[k] : 10) + bono(p, k);
 
   /* ---------- Ficha: un solo contenedor con todo lo que define al personaje ---------- */
-  function vistaFicha(p) {
+  function vistaFicha(p, plegada) {
     const pg = p.pg ?? p.pgMax ?? 0, f = p.pgMax ? Math.min(1, Math.max(0, pg / p.pgMax)) : 1;
     const estado = F.salud(pg, p.pgMax), nivel = F.muerto(pg, p.pgMax) ? 'muerto' : pg <= 0 ? 'mal' : f > .6 ? 'bien' : f > .25 ? 'medio' : 'mal';
     const salv = new Set(p.salv || []), comp = p.comp || 2, ca = (Number(p.ca) || 0) + bono(p, 'ca');
     const habTodas = R ? Object.entries(R.HABILIDADES) : [];
-    const habComp = habTodas.filter(([n]) => (p.hab || {})[n]);
     const totalHab = (n, a) => p.atr ? mod(atrCon(p, a)) + comp * ((p.hab || {})[n] || 0) : null;
     const efectos = p.efectos || [];
     const notas = p.cuaderno && p.cuaderno.length ? p.cuaderno : [''];
     hoja = Math.min(hoja, notas.length - 1);
-    return `
+    const heroe = `
       <section class="jhero">
         <div class="jhero__quien">
           ${F.ficha.retrato(p, 'jhero__retrato')}
@@ -129,12 +128,16 @@
           <p class="jnota">Marcadas: tus salvaciones con competencia.</p>
           ${habTodas.length ? `
           <details class="jhabs"${leer('forja.habs') === '1' ? ' open' : ''} data-recordar="forja.habs">
-            <summary><span class="jsub">Habilidades</span><span class="jhabs__comp">${habComp.map(([n, a]) => `<i>${e(n)} ${signo(totalHab(n, a))}</i>`).join('') || '<i>Sin competencias</i>'}</span><span class="jhabs__ver">Ver las 18</span></summary>
+            <summary><span class="jsub">Habilidades</span><span class="jhabs__ver">Ver las 18</span></summary>
             <ul class="jhabs__lista">${habTodas.map(([n, a]) => { const c = (p.hab || {})[n] || 0; return `<li class="${c ? 'is-comp' : ''}${c > 1 ? ' is-pericia' : ''}"><span>${e(n)}<small>${e(R.ATR_LABEL ? R.ATR_LABEL[a] || a.toUpperCase() : a.toUpperCase())}</small></span><b>${signo(totalHab(n, a))}</b></li>`; }).join('')}</ul>
             <p class="jnota">Verde: competente. Con doble marca: pericia.</p>
           </details>` : ''}
         </div>` : ''}
-      </section>
+      </section>`;
+    // En Conjuros y Mochila la ficha va plegada: nombre, foto y vida a la vista, y el resto al desplegar.
+    if (plegada) return `<details class="jmini"${leer('forja.mini') === '1' ? ' open' : ''} data-recordar="forja.mini">
+      <summary>${F.ficha.retrato(p, 'jmini__retrato')}<span><b>${e(p.nombre)}</b><small>${e(pg)} / ${e(p.pgMax || '—')} PG · CA ${e(p.ca !== undefined ? ca : '—')}</small></span><i>Ver ficha</i></summary>${heroe}</details>`;
+    return `${heroe}
       ${(p.ataques || []).length ? `<section class="jbloque"><h2 class="jsub">Ataques</h2><div class="lista-ataques">${p.ataques.map(a => `<div class="ataque"><div><b>${e(a.n)}</b><small>${e([a.t, a.r, a.nota].filter(Boolean).join(' · '))}</small></div><span class="ataque__num">${a.b !== undefined && a.b !== null && a.b !== '' ? signo(a.b) : ''}</span><span class="ataque__num">${e(a.d || '')}</span></div>`).join('')}</div></section>` : ''}
       ${(p.rasgos || []).length ? `<section class="jbloque"><details class="jplegable"${leer('forja.rasgos') === '1' ? ' open' : ''} data-recordar="forja.rasgos"><summary><span class="jsub">Rasgos <i>${p.rasgos.length}</i></span></summary><div class="rasgos">${p.rasgos.map(r => `<details><summary>${e(r.n)}</summary><p>${e(r.d)}</p></details>`).join('')}</div></details></section>` : ''}
       ${p.idiomas || p.sentidos ? `<section class="jbloque"><h2 class="jsub">Sentidos e idiomas</h2><p class="suave">${e([p.sentidos, p.idiomas].filter(Boolean).join(' · '))}</p></section>` : ''}
@@ -226,7 +229,7 @@
     document.title = p.nombre + ' · The Field Forge';
     const y = scrollY, foco = document.activeElement && document.activeElement.matches('[data-cuaderno]');
     if (borrador) p.cuaderno = borrador;
-    main.innerHTML = `<div class="jvista">${({ ficha: vistaFicha, conjuros: vistaConjuros, mochila: vistaMochila })[tab](p)}</div>`;
+    main.innerHTML = `<div class="jvista">${tab === 'ficha' ? '' : vistaFicha(p, true)}${({ ficha: vistaFicha, conjuros: vistaConjuros, mochila: vistaMochila })[tab](p)}</div>`;
     main.querySelectorAll('[data-f]').forEach(i => { i.style.width = i.dataset.f + '%'; });
     if (borrador) marcarCuaderno('Sin guardar');
     if (foco) { const t = $('[data-cuaderno]'); t.focus(); t.setSelectionRange(t.value.length, t.value.length); }

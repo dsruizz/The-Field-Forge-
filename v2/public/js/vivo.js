@@ -39,7 +39,7 @@
       const d = datos(), m = d.mesa;
       return m.enEscena.map(pj).filter(Boolean).filter(p => !m.ocultos.includes(p.id)).map(p => ({
         id: p.id, nombre: p.nombre, img: p.img || '', tipo: p.tipo, pg: p.pg ?? p.pgMax ?? 0, pgMax: p.pgMax || 0, ca: p.ca === undefined || p.ca === '' ? '' : Number(p.ca) + (p.efectos || []).filter(x => x.atr === 'ca').reduce((t, x) => t + x.valor, 0),
-        linea: F.ficha ? F.ficha.linea(p) : '', turno: m.turno === p.id
+        linea: F.ficha ? F.ficha.linea(p) : '', turno: m.turno === p.id, n: m.enEscena.indexOf(p.id) + 1
       }));
     }
     function evento() {

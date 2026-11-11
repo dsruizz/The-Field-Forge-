@@ -101,7 +101,7 @@
       const f = p.pgMax ? Math.max(0, Math.min(1, p.pg / p.pgMax)) : 1;
       const verPg = !p.pgMax || cfg.pg === false ? 'no' : p.tipo === 'pj' ? 'numero' : (cfg.enemigos || 'estado');
       return `<div class="${clase} gp--${e(p.tipo)}${p.turno ? ' is-turno' : ''}${p.pg <= 0 && p.pgMax ? ' is-caido' : ''}">
-        ${F.ficha ? F.ficha.retrato(p, 'gp__retrato') : ''}
+        <span class="gp__marco">${F.ficha ? F.ficha.retrato(p, 'gp__retrato') : ''}${p.n ? `<i class="gp__n">${e(p.n)}</i>` : ''}</span>
         <div class="gp__txt"><b>${e(p.nombre)}</b>${clase === 'mf' && p.linea ? `<em>${e(p.linea)}</em>` : ''}
           ${verPg !== 'no' ? `<span class="gp__barra" data-nivel="${f > .6 ? 'bien' : f > .25 ? 'medio' : 'mal'}"><i data-f="${Math.round(f * 100)}"></i></span>
           <small>${verPg === 'numero' && p.pg > 0 ? `${e(p.pg)} / ${e(p.pgMax)} PG` : salud(p.pg, p.pgMax)}</small>` : ''}

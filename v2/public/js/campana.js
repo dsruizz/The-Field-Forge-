@@ -1,5 +1,5 @@
 /* Campaña: portada, personajes, hilos y grupo. La crónica es del DM y vive en la mesa.
-   El jugador ve la portada, la sinopsis y un menú con Personajes y Grupo; su ficha está en «Mi personaje». */
+   El jugador ve la portada, la sinopsis y un menú con Personajes y Grupo; su ficha está en «Al campo». */
 (async () => {
   const F = window.Forja;
   const TFF = window.TFF;
@@ -73,7 +73,7 @@
     $('[data-pestanas-caja]').hidden = false;
     if (!PESTANAS().some(([k]) => k === pestana)) pestana = PESTANAS()[0][0];
     const boton = esDm ? `<a class="pestana-mesa" href="mesa.html?id=${encodeURIComponent(id)}">${F.icono('mesa')}Mesa y proyección</a>`
-      : `<a class="pestana-mesa" href="jugador.html?id=${encodeURIComponent(id)}">${F.icono('movil')}Mi personaje</a>`;
+      : `<a class="pestana-mesa" href="jugador.html?id=${encodeURIComponent(id)}" title="Tu personaje: ficha, conjuros y mochila">${F.icono('mascara')}Al campo</a>`;
     if (esDm) {
       $('[data-pestanas]').innerHTML = PESTANAS().map(([k, t]) => `<button type="button" role="tab" aria-selected="${k === pestana}" data-pestana="${k}">${t}</button>`).join('') + boton;
       return;
@@ -249,7 +249,7 @@
         ${esDm ? `
         <section class="panel">
           <h2>Invitar al grupo</h2>
-          <p class="suave">Comparte el código y la contraseña de la campaña. Quien se una entra como jugador y elige su personaje desde «Mi personaje»; tú apruebas la elección.</p>
+          <p class="suave">Comparte el código y la contraseña de la campaña. Quien se una entra como jugador y elige su personaje desde «Al campo»; tú apruebas la elección.</p>
           <div class="codigo"><span>${e(resumen.codigo)}</span><button class="boton boton--fantasma boton--icono" type="button" data-copiar aria-label="Copiar código">${F.icono('copiar')}</button></div>
         </section>` : ''}
         <section class="panel">

@@ -162,7 +162,7 @@ body[data-acento="pizarra"] { --ac: var(--pizarra); --sobre-ac: var(--papel); }
 .jsalv div.is-comp { border: 2px solid var(--tinta); background: var(--acido); color: var(--tinta); }
 .jsalv div.is-comp span { color: var(--tinta); }
 .jhabs { border-top: 2px solid var(--linea); padding-top: 10px; }
-.jhabs summary { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; align-items: center; cursor: pointer; list-style: none; }
+.jhabs summary { display: flex; justify-content: space-between; gap: 8px 10px; align-items: center; cursor: pointer; list-style: none; }
 .jhabs summary::-webkit-details-marker { display: none; }
 .jhabs__comp { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; gap: 6px; }
 .jhabs__comp i { font-style: normal; padding: 3px 9px; border-radius: 4px; background: var(--acido); color: var(--tinta); border: 1.5px solid var(--tinta); font-size: 12px; font-weight: 600; }
@@ -223,3 +223,17 @@ body[data-acento="pizarra"] { --ac: var(--pizarra); --sobre-ac: var(--papel); }
 .ob-efecto { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: center; padding: 10px 12px; background: var(--tinta); color: var(--amarillo); border-radius: 6px; }
 .ob-efecto svg { width: 22px; height: 22px; }
 .ob-efecto small { display: block; color: var(--papel); font-size: 12px; }
+
+/* Ficha plegada en Conjuros y Mochila: nombre, foto y vida; el resto al desplegar */
+.jmini { margin-bottom: 16px; }
+.jmini > summary { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border: 2px solid var(--borde-duro); border-radius: 8px; background: var(--superficie); box-shadow: 4px 4px 0 var(--ac); cursor: pointer; list-style: none; }
+.jmini > summary::-webkit-details-marker { display: none; }
+.jmini__retrato { width: 44px; height: 44px; overflow: hidden; display: grid; place-items: center; background: var(--tinta); color: var(--acido); font: 700 24px var(--gotica); }
+.jmini__retrato img { width: 100%; height: 100%; object-fit: cover; }
+.jmini > summary b { display: block; font: 700 15px/1.15 var(--sans); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jmini > summary small { font-size: 12px; color: var(--texto-2); }
+.jmini > summary i { font-style: normal; font-size: 12px; font-weight: 600; color: var(--enlace); }
+.jmini > summary i::after { content: " ▼"; }
+.jmini[open] > summary i::after { content: " ▲"; }
+.jmini[open] > summary { margin-bottom: 12px; }
+.jhabs summary { min-height: 40px; align-items: center; }

@@ -517,3 +517,9 @@ button.esc__img:hover img { opacity: .85; }
 .rc__lienzo canvas { max-width: 100%; touch-action: none; cursor: crosshair; }
 #recorte .fila-btn svg { width: 16px; height: 16px; }
 .is-embed .mbar { padding-left: 6px; }
+
+/* Orden de turno en la tabla del proyector */
+.gp__marco { position: relative; display: block; flex: none; }
+.gp__n { position: absolute; left: -.5cqw; top: -.5cqw; min-width: 1.5cqw; height: 1.5cqw; padding: 0 .3cqw; display: grid; place-items: center; border-radius: 99px; background: var(--papel); color: var(--tinta); font: 700 .9cqw/1 var(--sans); font-style: normal; }
+.is-turno .gp__n { background: var(--amarillo); }
+.mf .gp__n { left: -.9cqw; top: -.9cqw; min-width: 2.6cqw; height: 2.6cqw; font-size: 1.5cqw; border: .2cqw solid var(--tinta); }

@@ -36,7 +36,8 @@
     });
   }
   enviar(hojas.nueva, 'campanas', r => { location.href = 'campana.html?id=' + encodeURIComponent(r.campana.id) + '&nueva=1'; });
-  enviar(hojas.unirse, 'campanas/unirse', r => { F.toast(`Te uniste a «${r.campana.nombre}».`); cargar(); });
+  // Al unirse se entra directamente: lo siguiente que quiere el jugador es elegir su personaje.
+  enviar(hojas.unirse, 'campanas/unirse', r => { location.href = 'campana.html?id=' + encodeURIComponent(r.campana.id); });
 
   /* ---------- Lista ---------- */
   const tarjeta = c => `

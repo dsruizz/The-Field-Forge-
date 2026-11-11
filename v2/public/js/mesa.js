@@ -88,7 +88,13 @@
 
   /* ---------- Crónica ---------- */
   const dlgFicha = F.dialogo($('#ver-ficha'));
-  const verFicha = idp => { const p = pj(idp); if (p) { dlgFicha.querySelector('[data-cuerpo]').innerHTML = F.ficha.completa(p); dlgFicha.showModal(); } };
+  const verFicha = idp => {
+    const p = pj(idp); if (!p) return;
+    dlgFicha.querySelector('[data-cuerpo]').innerHTML = F.ficha.completa(p);
+    dlgFicha.querySelector('[data-pie]').innerHTML = `<button class="boton boton--primario boton--chico" type="button" data-editar-pj="${e(p.id)}">${F.icono('editar')}Editar</button>`;
+    if (!dlgFicha.open) dlgFicha.showModal();
+  };
+  dlgFicha.addEventListener('click', ev => { const b = ev.target.closest('[data-editar-pj]'); if (b) { dlgFicha.close(); abrirEdicion(b.dataset.editarPj); } });
   const cajaCronica = $('[data-vista-cronica]');
   const cronica = F.cronica.montar({
     caja: cajaCronica, datos: () => datos, id, vivo, verFicha,
@@ -116,6 +122,7 @@
         <button class="chip-btn" type="button" data-ojo="${e(p.id)}" aria-pressed="${!oculto}" title="${oculto ? 'Mostrar en el proyector' : 'Ocultar del proyector'}">${F.icono(oculto ? 'ojoNo' : 'ojo')}${oculto ? 'Oculto' : 'Visible'}</button>
         <button class="chip-btn" type="button" data-turno-de="${e(p.id)}" aria-pressed="${mesa.turno === p.id}">${F.icono('dado')}${mesa.turno === p.id ? 'En turno' : 'Turno'}</button>
         <span class="ec__orden">
+          <button class="herr herr--icono" type="button" data-editar-pj="${e(p.id)}" title="Editar" aria-label="Editar a ${e(p.nombre)}">${F.icono('editar')}</button>
           ${p.tipo === 'pj' ? `<button class="herr herr--icono" type="button" data-movil="${e(p.id)}" title="Ver su móvil" aria-label="Ver el móvil de ${e(p.nombre)}">${F.icono('movil')}</button>` : ''}
           <button class="herr herr--icono" type="button" data-orden="${e(p.id)}:-1" title="Subir en el orden de turnos" aria-label="Subir en el orden"${n > 1 ? '' : ' disabled'}>${F.icono('arriba')}</button>
           <button class="herr herr--icono" type="button" data-orden="${e(p.id)}:1" title="Bajar en el orden de turnos" aria-label="Bajar en el orden"${n < mesa.enEscena.length ? '' : ' disabled'}>${F.icono('abajo')}</button>
@@ -286,6 +293,7 @@
     else if (ds.sale) cambio(() => sacar([ds.sale]));
     else if ('sacarEnemigos' in ds) cambio(() => sacar(mesa.enEscena.filter(x => (pj(x) || {}).tipo === 'enemigo')));
     else if (ds.verFicha) verFicha(ds.verFicha);
+    else if (ds.editarPj) abrirEdicion(ds.editarPj);
     else if (ds.movil) abrirMovil(ds.movil);
     else if (ds.proyectarEscena) { mesa.actual = ds.proyectarEscena; vivo.poner({ modo: 'mapa', negro: false }); pintarVista(); programar(); }
     else if (ds.editarEscena) abrirEditor(ds.editarEscena);
@@ -341,6 +349,41 @@
   dlgEditor.addEventListener('cancel', ev => { ev.preventDefault(); cerrarEditor(); });
   addEventListener('message', ev => { if (ev.origin === location.origin && ev.data === 'forja:cerrar-editor') cerrarEditor(); });
 
+  /* ---------- Edición rápida: foto, nombre y números de quien está en escena ---------- */
+  const dlgEd = F.dialogo($('#editar-pj')), formEd = dlgEd.querySelector('form');
+  let editando = null, imgNueva;
+  const pintarRetratoEd = (img, nombre) => { dlgEd.querySelector('[data-retrato]').innerHTML = img ? `<img src="${e(img)}" alt="">` : e((nombre || '?').charAt(0).toUpperCase()); };
+  function abrirEdicion(idp) {
+    const p = pj(idp); if (!p) return;
+    editando = p; imgNueva = undefined; formEd.reset(); dlgEd.querySelector('.aviso').textContent = '';
+    formEd.nombre.value = p.nombre || ''; formEd.tipo.value = TIPO[p.tipo] ? p.tipo : 'npc'; formEd.rol.value = p.rol || ''; formEd.notas.value = p.notas || '';
+    formEd.nivel.value = p.nivel || ''; formEd.nivel.disabled = !p.gen;
+    formEd.ca.value = p.ca ?? ''; formEd.pgMax.value = p.pgMax || '';
+    pintarRetratoEd(p.img, p.nombre);
+    dlgEd.showModal();
+  }
+  dlgEd.querySelector('#ep-img').addEventListener('change', async ev => {
+    try { imgNueva = await F.reducirImagen(ev.target.files[0]); pintarRetratoEd(imgNueva, formEd.nombre.value); }
+    catch (err) { dlgEd.querySelector('.aviso').textContent = err.message; }
+  });
+  dlgEd.querySelector('[data-quitar-img]').addEventListener('click', () => { imgNueva = ''; dlgEd.querySelector('#ep-img').value = ''; pintarRetratoEd('', formEd.nombre.value); });
+  formEd.addEventListener('submit', ev => {
+    ev.preventDefault();
+    const nombre = formEd.nombre.value.trim();
+    if (!nombre) { dlgEd.querySelector('.aviso').textContent = 'Escribe un nombre.'; return; }
+    const p = editando;
+    cambio(() => {
+      Object.assign(p, { nombre, tipo: formEd.tipo.value, rol: formEd.rol.value.trim(), notas: formEd.notas.value });
+      if (imgNueva !== undefined) p.img = imgNueva;
+      const nivel = parseInt(formEd.nivel.value, 10);
+      if (p.gen && nivel && nivel !== p.nivel && TFF.npc) { p.nivel = limitar(nivel, 1, 20); TFF.npc.recalcular(p); }
+      const ca = parseInt(formEd.ca.value, 10), pgMax = parseInt(formEd.pgMax.value, 10);
+      if (ca > 0) p.ca = limitar(ca, 1, 40);
+      if (pgMax > 0 && pgMax !== p.pgMax) { const lleno = (p.pg ?? p.pgMax) >= (p.pgMax || 0); p.pgMax = limitar(pgMax, 1, 999); if (lleno || p.pg > p.pgMax) { p.pg = p.pgMax; if (p.tipo === 'pj') enviarPg(p); } }
+    });
+    dlgEd.close(); F.toast('Personaje guardado');
+  });
+
   /* ---------- Añadir a la escena: de la campaña o forjado al momento ---------- */
   const dlgAn = F.dialogo($('#anadir-dlg'));
   const filtroAn = { tipo: 'todos', q: '' };
@@ -373,6 +416,10 @@
     const f = forjado;
     previa.innerHTML = `
       <div class="previa-ed">
+        <div class="retrato-carga">
+          <div class="ficha__retrato" data-pv-retrato>${f.img ? `<img src="${e(f.img)}" alt="">` : e((f.nombre || '?').charAt(0))}</div>
+          <div class="campo"><label for="pv-img">Foto <span class="suave">(opcional)</span></label><input class="entrada" id="pv-img" type="file" accept="image/*" data-pv-img></div>
+        </div>
         <div class="fila">
           <div class="campo"><label for="pv-nombre">Nombre</label><input class="entrada" id="pv-nombre" data-pv="nombre" value="${e(f.nombre)}" maxlength="80"></div>
           <div class="campo"><label for="pv-tipo">Tipo</label><select class="entrada" id="pv-tipo" data-pv="tipo">${Object.entries(TIPO).map(([k, t]) => `<option value="${k}"${f.tipo === k ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
@@ -401,7 +448,12 @@
     } catch (err) { F.toast('No se pudo forjar: ' + err.message); }
   }
   formFj.addEventListener('submit', ev => { ev.preventDefault(); forjar(); });
-  previa.addEventListener('change', ev => {
+  previa.addEventListener('change', async ev => {
+    if ('pvImg' in ev.target.dataset && forjado) {
+      try { forjado.img = await F.reducirImagen(ev.target.files[0]); previa.querySelector('[data-pv-retrato]').innerHTML = `<img src="${e(forjado.img)}" alt="">`; previa.querySelector('.previa-ficha').innerHTML = F.ficha.completa(forjado); }
+      catch (err) { F.toast(err.message); }
+      return;
+    }
     const k = ev.target.dataset.pv; if (!k || !forjado) return;
     const v = ev.target.value;
     if (k === 'nivel') { const n = limitar(parseInt(v, 10) || 1, 1, 20); if (n !== forjado.nivel) { forjado.nivel = n; TFF.npc.recalcular(forjado); } }
