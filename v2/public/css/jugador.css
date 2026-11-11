@@ -110,6 +110,11 @@ body[data-acento="pizarra"] { --ac: var(--pizarra); --sobre-ac: var(--papel); }
 .jpet .boton { color: var(--oxido); }
 .jpet--aprobada { background: var(--acido); }
 .jpet--rechazada { background: var(--oxido); color: var(--papel); }
+.jpet__cerrar { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 2px solid currentColor; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.jpet__cerrar svg { width: 18px; height: 18px; }
+.jpet__cerrar:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+.jpet.is-saliendo { opacity: 0; transform: translateY(-6px); transition: opacity .3s ease, transform .3s ease; }
+@media (prefers-reduced-motion: reduce) { .jpet.is-saliendo { transform: none; } }
 
 /* Hojas que suben desde abajo en el móvil */
 .ob-cab { display: grid; grid-template-columns: 56px 1fr; gap: 14px; align-items: center; }
@@ -237,3 +242,12 @@ body[data-acento="pizarra"] { --ac: var(--pizarra); --sobre-ac: var(--papel); }
 .jmini[open] > summary i::after { content: " ▲"; }
 .jmini[open] > summary { margin-bottom: 12px; }
 .jhabs summary { min-height: 40px; align-items: center; }
+
+/* Tirada antes de usar un objeto con dados */
+.ob-tirada { display: grid; gap: 14px; }
+.ob-tirada__pide { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: center; padding: 12px 14px; background: var(--amarillo); color: var(--tinta); border: 2px solid var(--tinta); box-shadow: 4px 4px 0 var(--dura); }
+.ob-tirada__pide svg { width: 26px; height: 26px; }
+.ob-tirada__pide b { display: block; font: 700 16px/1.2 var(--sans); text-transform: uppercase; }
+.ob-tirada__pide small { font-size: 13px; }
+.ob-tirada .entrada { font-size: 22px; font-weight: 600; text-align: center; }
+.ob-acc--fila { grid-template-columns: auto 1fr; }

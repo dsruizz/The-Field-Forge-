@@ -1,6 +1,7 @@
 /* Vista del jugador, pensada para el móvil: su ficha, sus conjuros, su mochila y su cuaderno.
    La vida y los espacios de conjuro los lleva el DM; aquí solo se ven. Mover objetos de sitio y escribir
-   en el cuaderno es libre. Añadir, dar o soltar se pide al DM; los objetos de la forja se usan al momento.
+   en el cuaderno es libre. Añadir, usar, dar o soltar se pide al DM; si el objeto lleva dados (una poción
+   de curación, 2d4+2), el jugador tira los suyos en la mesa y escribe el resultado antes de pedirlo.
    El DM puede abrir cualquier personaje (?pj=…): sus cambios se aplican sin pedir permiso. Con &simular=1
    actúa como lo haría el jugador. Con &embed=1 se muestra dentro de la mesa, en una ventana interna. */
 (async () => {
@@ -194,17 +195,42 @@
       ${Object.keys(porNivel).sort().map(l => `<section class="jbloque"><h2 class="jsub">Nivel ${e(l)}</h2><div class="rasgos">${porNivel[l].map(n => item(n, 'Nv ' + l)).join('')}</div></section>`).join('')}`;
   }
 
+  /* ---------- Respuestas del DM: se ven un rato y se van solas, o se cierran con la X ----------
+     Las ya vistas se recuerdan en este navegador para que no vuelvan al recargar. */
+  const CLAVE_VISTAS = 'forja.vistas.' + id, DURA_AVISO = 8000;
+  const vistas = new Set((() => { try { return JSON.parse(leer(CLAVE_VISTAS) || '[]'); } catch { return []; } })());
+  const relojes = new Map();
+  function marcarVista(idp) {
+    if (vistas.has(idp)) return;
+    vistas.add(idp); poner(CLAVE_VISTAS, JSON.stringify([...vistas].slice(-60)));
+    clearTimeout(relojes.get(idp)); relojes.delete(idp);
+    const el = main.querySelector(`[data-respuesta="${CSS.escape(idp)}"]`);
+    if (!el) return;
+    const quitar = () => { const caja = el.parentNode; el.remove(); if (caja && caja.classList.contains('jpets') && !caja.children.length) caja.remove(); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return quitar();
+    el.classList.add('is-saliendo'); setTimeout(quitar, 320);
+  }
+  // Tras pintar: cada respuesta visible se oculta sola pasados unos segundos (una sola cuenta por aviso).
+  function programarAvisos() {
+    main.querySelectorAll('[data-respuesta]').forEach(el => {
+      const idp = el.dataset.respuesta;
+      if (!relojes.has(idp)) relojes.set(idp, setTimeout(() => marcarVista(idp), DURA_AVISO));
+    });
+  }
+
   /* ---------- Mochila ---------- */
   const pendientes = () => (est.peticiones || []).filter(x => x.estado === 'pendiente');
-  const textoEfecto = ef => !ef ? '' : ef.clase === 'curar' ? `Cura ${ef.dados} PG` : `${NOMBRE_ATR[ef.clase === 'ca' ? 'ca' : ef.atr]} ${ef.valor >= 0 ? '+' : ''}${ef.valor} durante ${ef.turnos} ${ef.turnos === 1 ? 'turno' : 'turnos'}`;
+  const textoEfecto = ef => !ef ? '' : ef.clase === 'curar' ? `Cura ${ef.dados} PG` : `${NOMBRE_ATR[ef.clase === 'ca' ? 'ca' : ef.atr]} ${ef.dados ? '+' + ef.dados : (ef.valor >= 0 ? '+' : '') + ef.valor} durante ${ef.turnos} ${ef.turnos === 1 ? 'turno' : 'turnos'}`;
+  // «2d4+2» → { n: 2, caras: 4, mod: 2 }; un número fijo no pide tirada.
+  const dadosDe = ob => { const m = /^(\d{0,2})d(\d{1,3})([+-]\d{1,3})?$/i.exec((ob.efecto && ob.efecto.dados) || ''); return m ? { n: Number(m[1]) || 1, caras: Number(m[2]), mod: Number(m[3]) || 0 } : null; };
   function vistaMochila(p) {
     const inv = p.inv || [], pend = pendientes();
-    const recientes = (est.peticiones || []).filter(x => x.estado !== 'pendiente' && Date.now() - (x.resuelta || 0) < 15 * 60 * 1000).slice(-3);
+    const recientes = (est.peticiones || []).filter(x => x.estado !== 'pendiente' && !vistas.has(x.id) && Date.now() - (x.resuelta || 0) < 15 * 60 * 1000).slice(-3);
     const enEspera = new Set(pend.map(x => x.objeto));
     return `
       ${pend.length || recientes.length ? `<section class="jbloque jpets">
         ${pend.map(x => `<p class="jpet"><span>${F.icono('movil')}</span><span><b>${e(x.texto)}</b><small>Esperando al DM</small></span><button class="boton boton--fantasma boton--chico" type="button" data-cancelar="${e(x.id)}">Cancelar</button></p>`).join('')}
-        ${recientes.map(x => `<p class="jpet jpet--${e(x.estado)}"><span>${F.icono(x.estado === 'aprobada' ? 'hecho' : 'cerrar')}</span><span><b>${e(x.texto)}</b><small>${x.estado === 'aprobada' ? 'Aprobada' : 'Rechazada'}${x.resultado ? ' · ' + e(x.resultado) : ''}${x.motivo ? ' · ' + e(x.motivo) : ''} · ${e(F.hace(x.resuelta))}</small></span></p>`).join('')}
+        ${recientes.map(x => `<p class="jpet jpet--${e(x.estado)}" data-respuesta="${e(x.id)}"><span>${F.icono(x.estado === 'aprobada' ? 'hecho' : 'cerrar')}</span><span><b>${e(x.texto)}</b><small>${x.estado === 'aprobada' ? 'Aprobada' : 'Rechazada'}${x.resultado ? ' · ' + e(x.resultado) : ''}${x.motivo ? ' · ' + e(x.motivo) : ''} · ${e(F.hace(x.resuelta))}</small></span><button class="jpet__cerrar" type="button" data-visto="${e(x.id)}" aria-label="Cerrar aviso">${F.icono('cerrar')}</button></p>`).join('')}
       </section>` : ''}
       ${LUGARES.map(([k, t, ayuda]) => { const l = inv.filter(x => (x.lugar || 'mochila') === k); return `
         <section class="jbloque jzona"><h2 class="jsub">${t} <i>${l.reduce((n, x) => n + (x.cant || 1), 0)}</i></h2>
@@ -231,18 +257,34 @@
     if (borrador) p.cuaderno = borrador;
     main.innerHTML = `<div class="jvista">${tab === 'ficha' ? '' : vistaFicha(p, true)}${({ ficha: vistaFicha, conjuros: vistaConjuros, mochila: vistaMochila })[tab](p)}</div>`;
     main.querySelectorAll('[data-f]').forEach(i => { i.style.width = i.dataset.f + '%'; });
+    programarAvisos();
     if (borrador) marcarCuaderno('Sin guardar');
     if (foco) { const t = $('[data-cuaderno]'); t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
     tabs.hidden = false;
     const n = pendientes().length;
     tabs.innerHTML = TABS.map(([k, t, ic]) => `<button type="button" aria-pressed="${k === tab}" data-tab="${k}">${F.icono(ic)}<span>${t}</span>${k === 'mochila' && n ? `<i>${n}</i>` : ''}</button>`).join('');
     scrollTo(0, y);
-    if (dlgOb.open) { const ob = (p.inv || []).find(x => x.id === dlgOb.dataset.id); if (ob) pintarObjeto(ob); else dlgOb.close(); }
+    if (dlgOb.open && !tirando) { const ob = (p.inv || []).find(x => x.id === dlgOb.dataset.id); if (ob) pintarObjeto(ob); else dlgOb.close(); }
   }
 
   /* ---------- Objeto ---------- */
   const dlgOb = F.dialogo($('#objeto-dlg'));
+  let tirando = null; // id del objeto cuyo uso espera la tirada del jugador
+  function pintarTirada(ob, d) {
+    const mod = d.mod ? ` El ${d.mod > 0 ? '+' : ''}${d.mod} se suma solo.` : '';
+    return `<form class="ob-tirada" data-ob-tirada novalidate>
+      <p class="ob-tirada__pide">${F.icono('dado')}<span><b>Tira ${e(d.n)}d${e(d.caras)}</b><small>Tira tus dados en la mesa y escribe lo que suman.${e(mod)}</small></span></p>
+      <div class="campo"><label for="ob-tirada">Lo que sacaste <span class="suave">(${e(d.n)} a ${e(d.n * d.caras)})</span></label>
+        <input class="entrada" id="ob-tirada" name="tirada" type="number" inputmode="numeric" min="${e(d.n)}" max="${e(d.n * d.caras)}" required autocomplete="off"></div>
+      <p class="aviso" role="alert"></p>
+      <div class="ob-acc ob-acc--fila">
+        <button class="boton boton--fantasma" type="button" data-ob-volver>Volver</button>
+        <button class="boton boton--primario" type="submit">${F.icono('hecho')}<span>${directo() ? 'Aplicar' : 'Enviar al DM'}</span></button>
+      </div>
+    </form>`;
+  }
   function pintarObjeto(ob) {
+    if (dlgOb.dataset.id !== ob.id) tirando = null;
     dlgOb.dataset.id = ob.id;
     const espera = pendientes().find(x => x.objeto === ob.id);
     const pide = directo() ? '' : ' <small>pide permiso</small>';
@@ -252,9 +294,9 @@
       ${ob.efecto ? `<p class="ob-efecto">${F.icono('chispa')}<span><b>${e(textoEfecto(ob.efecto))}</b><small>${ob.consumible !== false ? 'Se gasta al usarlo' : 'No se gasta'}${ob.resto ? ' · deja: ' + e(ob.resto) : ''}</small></span></p>` : ''}
       ${ob.nota ? `<p class="ob-nota">${e(ob.nota)}</p>` : ''}
       <div class="campo"><span class="etq">Dónde lo llevas</span><div class="tipos" role="group">${LUGARES.map(([k, t]) => `<button type="button" aria-pressed="${(ob.lugar || 'mochila') === k}" data-mover="${k}">${t}</button>`).join('')}</div></div>
-      ${espera ? `<p class="jpet"><span>${F.icono('movil')}</span><span><b>${e(espera.texto)}</b><small>Esperando al DM</small></span></p>` : `
+      ${tirando === ob.id && dadosDe(ob) ? pintarTirada(ob, dadosDe(ob)) : espera ? `<p class="jpet"><span>${F.icono('movil')}</span><span><b>${e(espera.texto)}</b><small>Esperando al DM</small></span></p>` : `
       <div class="ob-acc">
-        ${usable ? `<button class="boton boton--primario" type="button" data-ob-usar>${F.icono(ob.tipo in TIPOS ? ob.tipo : 'chispa')}<span>Usar${ob.efecto ? '' : pide}</span></button>` : ''}
+        ${usable ? `<button class="boton boton--primario" type="button" data-ob-usar>${F.icono(ob.tipo in TIPOS ? ob.tipo : 'chispa')}<span>Usar${pide}</span></button>` : ''}
         ${est.companeros.length ? `<div class="ob-dar"><select class="entrada" data-ob-a aria-label="A quién se lo das">${est.companeros.map(c => `<option value="${e(c.id)}">${e(c.nombre)}</option>`).join('')}</select><button class="boton boton--secundario" type="button" data-ob-dar>${F.icono('dar')}<span>Dar${pide}</span></button></div>` : ''}
         ${ob.cant > 1 ? `<label class="campo ob-cant"><span class="etq">Cuántos (para dar o soltar)</span><input class="entrada" type="number" inputmode="numeric" min="1" max="${e(ob.cant)}" value="1" data-ob-cant></label>` : ''}
         <button class="boton boton--fantasma" type="button" data-ob-tirar>${F.icono('borrar')}<span>Soltar${pide}</span></button>
@@ -266,14 +308,29 @@
     const aviso = directo() ? 'Hecho' : 'Enviado al DM';
     const ob = est.pj.inv.find(x => x.id === objeto);
     if (b.dataset.mover) return hacer({ accion: 'mover', objeto, lugar: b.dataset.mover });
+    if ('obVolver' in b.dataset) { tirando = null; return pintarObjeto(ob); }
     if ('obUsar' in b.dataset) {
+      // Con dados, primero se pide la tirada; el efecto no se aplica hasta que el DM lo aprueba.
+      if (ob && dadosDe(ob)) { tirando = ob.id; pintarObjeto(ob); const i = dlgOb.querySelector('#ob-tirada'); if (i) i.focus(); return; }
       dlgOb.close();
-      if (ob && (ob.efecto || directo())) return hacer({ accion: 'usar', objeto }, r => `${ob.n}: ${(r && r.resultado) || 'usado'}`);
+      if (directo()) return hacer({ accion: 'usar', objeto }, r => `${ob.n}: ${(r && r.resultado) || 'usado'}`);
       return hacer({ accion: 'pedir', tipo: 'usar', objeto }, aviso);
     }
     if ('obDar' in b.dataset) { const a = dlgOb.querySelector('[data-ob-a]').value; dlgOb.close(); return hacer({ accion: 'pedir', tipo: 'dar', objeto, a, cant }, aviso); }
     if ('obTirar' in b.dataset) { dlgOb.close(); return hacer({ accion: 'pedir', tipo: 'tirar', objeto, cant }, aviso); }
   });
+
+  dlgOb.addEventListener('submit', async ev => {
+    const f = ev.target.closest('[data-ob-tirada]'); if (!f) return;
+    ev.preventDefault();
+    const ob = est.pj.inv.find(x => x.id === dlgOb.dataset.id), d = ob && dadosDe(ob); if (!d) return;
+    const v = parseInt(f.tirada.value, 10), max = d.n * d.caras;
+    if (Number.isNaN(v) || v < d.n || v > max) { f.querySelector('.aviso').textContent = `Escribe un número entre ${d.n} y ${max}.`; f.tirada.focus(); return; }
+    tirando = null; dlgOb.close();
+    if (directo()) return hacer({ accion: 'usar', objeto: ob.id, tirada: v }, r => `${ob.n}: ${(r && r.resultado) || 'usado'}`);
+    return hacer({ accion: 'pedir', tipo: 'usar', objeto: ob.id, tirada: v }, 'Enviado al DM: espera su aprobación');
+  });
+  dlgOb.addEventListener('close', () => { tirando = null; });
 
   /* ---------- Pedir un objeto ---------- */
   const dlgPd = F.dialogo($('#pedir-dlg')), formPd = dlgPd.querySelector('form');
@@ -297,6 +354,7 @@
     else if (d.descanso) { if (confirm(d.descanso === 'largo' ? '¿Descanso largo? Recupera todos los espacios de conjuro y la vida.' : '¿Descanso corto? Recupera los espacios de conjuro.')) hacer({ accion: 'descanso', largo: d.descanso === 'largo' }, 'Descansado'); }
     else if (d.objeto) { const ob = est.pj.inv.find(x => x.id === d.objeto); if (ob) { pintarObjeto(ob); dlgOb.showModal(); } }
     else if ('pedir' in d) { formPd.reset(); tipoPd = 'objeto'; pintarTipos(); formPd.querySelector('.aviso').textContent = ''; $('[data-pd-nota]').textContent = directo() ? 'Como DM, se añade al momento.' : 'Tu DM lo verá en su mesa y decidirá si entra en tu inventario.'; $('[data-pd-enviar]').textContent = directo() ? 'Añadir' : 'Pedir al DM'; dlgPd.showModal(); }
+    else if (d.visto) marcarVista(d.visto);
     else if (d.cancelar) hacer({ accion: 'cancelar', peticion: d.cancelar });
     else if ('cancelarPj' in d) hacer({ accion: 'cancelar' }, 'Petición cancelada');
     else if (d.acento) { aplicarAcento(d.acento); poner('forja.acento', d.acento); pintar(); }

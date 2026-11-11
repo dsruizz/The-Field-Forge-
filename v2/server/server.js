@@ -374,8 +374,13 @@ function validarEfecto(x) {
   const clase = ['curar', 'atributo', 'ca'].includes(x.clase) ? x.clase : null;
   if (!clase) return null;
   const ef = { clase };
-  if (clase === 'curar') { ef.dados = /^\s*\d{0,2}d\d{1,3}(\s*[+-]\s*\d{1,3})?\s*$|^\s*\d{1,3}\s*$/i.test(String(x.dados || '')) ? String(x.dados).replace(/\s+/g, '') : '1d4'; }
-  else { ef.valor = entero(x.valor, -10, 10, 1); ef.turnos = entero(x.turnos, 1, 100, 3); if (clase === 'atributo') ef.atr = ATRS.includes(x.atr) ? x.atr : 'fue'; }
+  const dados = String(x.dados || '').replace(/\s+/g, '');
+  if (clase === 'curar') { ef.dados = /^\d{0,2}d\d{1,3}([+-]\d{1,3})?$|^\d{1,3}$/i.test(dados) ? dados : '1d4'; }
+  else {
+    // La bonificación puede ser fija (+2) o de dados (1d4): con dados, el jugador escribe lo que sacó.
+    if (partesDados(dados)) ef.dados = dados; else ef.valor = entero(x.valor, -10, 10, 1);
+    ef.turnos = entero(x.turnos, 1, 100, 3); if (clase === 'atributo') ef.atr = ATRS.includes(x.atr) ? x.atr : 'fue';
+  }
   return ef;
 }
 function validarObjeto(o) {
@@ -385,6 +390,19 @@ function validarObjeto(o) {
   if (o.consumible || ef) { ob.consumible = o.consumible !== false; ob.resto = texto(o.resto, 40); }
   return ob;
 }
+// «2d4+2» → { n: 2, caras: 4, mod: 2 }. Un número fijo no es una tirada: devuelve null.
+function partesDados(expr) {
+  const m = /^(\d{0,2})d(\d{1,3})([+-]\d{1,3})?$/i.exec(String(expr || ''));
+  return m ? { n: Number(m[1]) || 1, caras: Number(m[2]), mod: Number(m[3]) || 0 } : null;
+}
+// Lo que el jugador dice que sacó en los dados del objeto (sin el modificador). null si el objeto no pide tirada.
+function leerTirada(ob, v) {
+  const d = partesDados(ob.efecto && ob.efecto.dados);
+  if (!d) return null;
+  const n = parseInt(v, 10), min = d.n, max = d.n * d.caras;
+  if (Number.isNaN(n) || n < min || n > max) fallo(400, `Escribe lo que sacaste en ${d.n}d${d.caras}: un número entre ${min} y ${max}.`);
+  return n;
+}
 const tirar = expr => {
   const m = /^(\d{0,2})d(\d{1,3})([+-]\d{1,3})?$/i.exec(expr);
   if (!m) return Number(expr) || 0;
@@ -393,17 +411,21 @@ const tirar = expr => {
 };
 const NOMBRE_ATR = { fue: 'Fuerza', des: 'Destreza', con: 'Constitución', int: 'Inteligencia', sab: 'Sabiduría', car: 'Carisma', ca: 'CA' };
 // Gasta una unidad, deja el resto (frasco, jarra…) y aplica el efecto. Devuelve qué pasó, en palabras.
-function usarObjeto(p, ob) {
+// «tirada» es lo que el jugador sacó en los dados; si no llega (objetos antiguos), se tira aquí.
+function usarObjeto(p, ob, tirada) {
   let que = '';
   const ef = ob.efecto;
+  const d = ef && partesDados(ef.dados);
+  const resultado = () => d && tirada != null ? tirada + d.mod : tirar(ef.dados);
   if (ef && ef.clase === 'curar') {
-    const r = Math.max(0, tirar(ef.dados)); const antes = Math.max(0, p.pg ?? p.pgMax ?? 0);
+    const r = Math.max(0, resultado()); const antes = Math.max(0, p.pg ?? p.pgMax ?? 0);
     p.pg = Math.min(p.pgMax || 999, antes + r); que = `recupera ${p.pg - antes} PG (${ef.dados} = ${r})`;
   } else if (ef) {
     const atr = ef.clase === 'ca' ? 'ca' : ef.atr;
+    const valor = ef.dados ? Math.max(-10, Math.min(20, resultado())) : ef.valor;
     p.efectos = (p.efectos || []).filter(x => !(x.n === ob.n && x.atr === atr));
-    p.efectos.push({ id: idCorto('ef'), n: ob.n, atr, valor: ef.valor, turnos: ef.turnos });
-    que = `${NOMBRE_ATR[atr]} ${ef.valor >= 0 ? '+' : ''}${ef.valor} durante ${ef.turnos} ${ef.turnos === 1 ? 'turno' : 'turnos'}`;
+    p.efectos.push({ id: idCorto('ef'), n: ob.n, atr, valor, turnos: ef.turnos });
+    que = `${NOMBRE_ATR[atr]} ${valor >= 0 ? '+' : ''}${valor}${ef.dados ? ` (${ef.dados})` : ''} durante ${ef.turnos} ${ef.turnos === 1 ? 'turno' : 'turnos'}`;
   }
   if (ob.consumible !== false && (ef || ['pocion', 'pergamino', 'comida'].includes(ob.tipo))) {
     ob.cant -= 1;
@@ -459,7 +481,7 @@ function aplicarPeticion(d, pet) {
   } else {
     const ob = p.inv.find(x => x.id === pet.objeto);
     if (!ob) fallo(409, 'Ese objeto ya no está en el inventario.');
-    if (pet.tipo === 'usar') { pet.resultado = usarObjeto(p, ob); tocados.forEach(marcar); return tocados; }
+    if (pet.tipo === 'usar') { pet.resultado = usarObjeto(p, ob, pet.tirada); tocados.forEach(marcar); return tocados; }
     const cant = Math.min(pet.cant || 1, ob.cant);
     ob.cant -= cant;
     if (ob.cant <= 0) p.inv = p.inv.filter(x => x !== ob);
@@ -701,8 +723,9 @@ async function api(req, res, ruta, consulta) {
       }
       else if (accion === 'usar') {
         const ob = objeto();
-        if (!ob.efecto && !directo) fallo(403, 'Ese objeto se usa pidiéndoselo al DM.');
-        const que = usarObjeto(p, ob);
+        // Solo el DM usa objetos al momento; el jugador lo pide (con su tirada) y el DM lo aprueba.
+        if (!directo) fallo(403, 'Ese objeto se usa pidiéndoselo al DM.');
+        const que = usarObjeto(p, ob, b.tirada === undefined || b.tirada === '' ? null : leerTirada(ob, b.tirada));
         tocados.forEach(marcar); guardarDatos(cc, d);
         avisarCambio(cc.id, d, tocados, { aviso: `${p.nombre} usa ${ob.n}${que ? ': ' + que : ''}` });
         return json(res, 200, { ok: true, resultado: que });
@@ -739,6 +762,10 @@ async function api(req, res, ruta, consulta) {
             const a = d.personajes.find(x => x.id === b.a && x.tipo === 'pj' && x.id !== p.id) || fallo(400, 'Elige a quién se lo das.');
             pet.a = a.id; pet.texto = 'Dar ' + que + ' a ' + a.nombre;
           } else pet.texto = (tipo === 'usar' ? 'Usar ' : 'Soltar ') + que;
+          if (tipo === 'usar') {
+            const t = leerTirada(ob, b.tirada);
+            if (t !== null) { const dd = partesDados(ob.efecto.dados); pet.tirada = t; pet.texto += ` · sacó ${t} en ${dd.n}d${dd.caras}${dd.mod ? ` (${dd.mod > 0 ? '+' : ''}${dd.mod} = ${t + dd.mod})` : ''}`; }
+          }
         }
         if (directo) { tocados = aplicarPeticion(d, pet); }
         else {

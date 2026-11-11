@@ -192,7 +192,7 @@
       <div class="fila" data-fo-campos="curar"><div class="campo"><label for="fo-dados">Cura</label><input class="entrada" id="fo-dados" name="dados" maxlength="12" placeholder="2d4+2"><span class="ayuda">Dados (2d4+2) o un número fijo.</span></div></div>
       <div class="fila" data-fo-campos="bono">
         <div class="campo" data-fo-atr><label for="fo-atr">Atributo</label><select class="entrada" id="fo-atr" name="atr"><option value="fue">Fuerza</option><option value="des">Destreza</option><option value="con">Constitución</option><option value="int">Inteligencia</option><option value="sab">Sabiduría</option><option value="car">Carisma</option></select></div>
-        <div class="campo"><label for="fo-valor">Cuánto</label><input class="entrada" id="fo-valor" name="valor" type="number" min="-10" max="10" value="2"></div>
+        <div class="campo"><label for="fo-valor">Cuánto</label><input class="entrada" id="fo-valor" name="valor" maxlength="10" value="2" autocomplete="off" aria-describedby="fo-valor-ayuda"><span class="ayuda" id="fo-valor-ayuda">Fijo (2) o dados (1d4).</span></div>
         <div class="campo"><label for="fo-turnos">Turnos</label><input class="entrada" id="fo-turnos" name="turnos" type="number" min="1" max="100" value="3"></div>
       </div>
       <label class="casilla" data-fo-consumible><input type="checkbox" name="consumible" checked> Se gasta al usarlo</label>

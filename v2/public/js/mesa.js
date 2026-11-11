@@ -205,7 +205,7 @@
   /* ---------- Forja de utilidades ---------- */
   const TIPOS_OBJ = { pocion: 'Poción', comida: 'Comida y bebida', pergamino: 'Pergamino', arma: 'Arma', armadura: 'Armadura', escudo: 'Escudo', herramienta: 'Herramienta', tesoro: 'Tesoro', objeto: 'Otro' };
   const ATR_LARGO = { fue: 'Fuerza', des: 'Destreza', con: 'Constitución', int: 'Inteligencia', sab: 'Sabiduría', car: 'Carisma', ca: 'CA' };
-  const textoEfecto = ef => !ef ? 'Sin efecto: solo narrativo' : ef.clase === 'curar' ? `Cura ${ef.dados} PG` : `${ATR_LARGO[ef.clase === 'ca' ? 'ca' : ef.atr]} ${ef.valor >= 0 ? '+' : ''}${ef.valor} durante ${ef.turnos} ${ef.turnos === 1 ? 'turno' : 'turnos'}`;
+  const textoEfecto = ef => !ef ? 'Sin efecto: solo narrativo' : ef.clase === 'curar' ? `Cura ${ef.dados} PG` : `${ATR_LARGO[ef.clase === 'ca' ? 'ca' : ef.atr]} ${ef.dados ? '+' + ef.dados : (ef.valor >= 0 ? '+' : '') + ef.valor} durante ${ef.turnos} ${ef.turnos === 1 ? 'turno' : 'turnos'}`;
   // Lo básico para empezar: se puede editar o borrar.
   const BASICOS = () => [
     { n: 'Poción de curación', tipo: 'pocion', nota: 'Un líquido rojo que brilla al agitarlo.', efecto: { clase: 'curar', dados: '2d4+2' }, consumible: true, resto: 'Frasco vacío', precio: 50 },
@@ -222,7 +222,7 @@
   if (!mesa.forja) { mesa.forja = BASICOS(); forjaNueva = true; }
   function vistaForja() {
     return `
-      <p class="suave vista-intro">Objetos con un uso real: al usarlos curan o suman a un atributo o a la CA durante unos turnos. Créalos aquí y dáselos a un jugador; aparecen en su mochila listos para usar. Los turnos se descuentan cuando le llega su turno en Escena.</p>
+      <p class="suave vista-intro">Objetos con un uso real: curan o suman a un atributo o a la CA durante unos turnos. Créalos aquí y dáselos a un jugador. Cuando lo use, te llega a la campanilla para aprobarlo; si lleva dados (2d4+2), el jugador escribe antes lo que sacó. Los turnos se descuentan cuando le llega su turno en Escena.</p>
       <div class="forja-grid">
         <button class="obj obj--nuevo" type="button" data-nuevo-obj><span>${F.icono('mas')}</span><b>Crear objeto</b></button>
         ${mesa.forja.map(o => `
@@ -539,7 +539,7 @@
     if (o) {
       formObj.n.value = o.n; formObj.nota.value = o.nota || ''; formObj.resto.value = o.resto || ''; formObj.precio.value = o.precio || '';
       formObj.consumible.checked = o.consumible !== false && (!!o.efecto || !!o.consumible);
-      if (o.efecto) { formObj.dados.value = o.efecto.dados || ''; formObj.atr.value = o.efecto.atr || 'fue'; formObj.valor.value = o.efecto.valor ?? 2; formObj.turnos.value = o.efecto.turnos ?? 3; }
+      if (o.efecto) { formObj.dados.value = o.efecto.dados || ''; formObj.atr.value = o.efecto.atr || 'fue'; formObj.valor.value = o.efecto.dados && o.efecto.clase !== 'curar' ? o.efecto.dados : (o.efecto.valor ?? 2); formObj.turnos.value = o.efecto.turnos ?? 3; }
     } else formObj.resto.value = 'Frasco vacío';
     pintarObjForm(); dlgObj.showModal(); formObj.n.focus();
   }
@@ -562,7 +562,13 @@
       const dd = (formObj.dados.value.trim() || '1d4').replace(/\s+/g, '');
       if (!/^\d{0,2}d\d{1,3}([+-]\d{1,3})?$|^\d{1,3}$/i.test(dd)) { aviso.textContent = 'Escribe la curación como 2d4+2 o como un número.'; return; }
       efecto = { clase: 'curar', dados: dd };
-    } else if (objEfecto !== 'ninguno') efecto = { clase: objEfecto, valor: limitar(parseInt(formObj.valor.value, 10) || 1, -10, 10), turnos: limitar(parseInt(formObj.turnos.value, 10) || 1, 1, 100), ...(objEfecto === 'atributo' ? { atr: formObj.atr.value } : {}) };
+    } else if (objEfecto !== 'ninguno') {
+      // «Cuánto» acepta un número fijo (+2) o dados (1d4): con dados, el jugador tira y escribe el resultado.
+      const v = formObj.valor.value.trim().replace(/\s+/g, '').replace(/^\+/, '');
+      const conDados = /^\d{0,2}d\d{1,3}([+-]\d{1,3})?$/i.test(v);
+      if (!conDados && !/^-?\d{1,2}$/.test(v)) { aviso.textContent = 'Escribe cuánto suma como un número (2) o con dados (1d4).'; formObj.valor.focus(); return; }
+      efecto = { clase: objEfecto, ...(conDados ? { dados: v.toLowerCase() } : { valor: limitar(parseInt(v, 10), -10, 10) }), turnos: limitar(parseInt(formObj.turnos.value, 10) || 1, 1, 100), ...(objEfecto === 'atributo' ? { atr: formObj.atr.value } : {}) };
+    }
     const o = { n, tipo: objTipo, nota: formObj.nota.value.trim(), consumible: formObj.consumible.checked, resto: formObj.resto.value.trim(), precio: parseInt(formObj.precio.value, 10) || 0 };
     if (efecto) o.efecto = efecto;
     dlgObj.close();

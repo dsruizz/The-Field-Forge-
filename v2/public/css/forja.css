@@ -147,7 +147,10 @@ button { font: inherit; color: inherit; }
 .pie .logo { height: 34px; }
 
 /* ---------- Página de cuenta ---------- */
-.cuenta { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; background: var(--noche); color: var(--papel); position: relative; isolation: isolate; overflow: hidden; }
+/* Ojo: .cuenta es el <body>. Un overflow: hidden aquí pasa a la ventana y bloquea el scroll en el móvil,
+   donde el formulario de registro es más alto que la pantalla. Solo se recorta en horizontal (la ilustración
+   se sale un 4 % por los lados); en vertical la página crece y se desplaza. */
+.cuenta { min-height: 100vh; min-height: 100svh; display: grid; grid-template-rows: auto 1fr; background: var(--noche); color: var(--papel); position: relative; isolation: isolate; overflow-x: hidden; overflow-x: clip; }
 .cuenta .escena__ilus { opacity: .13; }
 .cuenta .barra { --logo: var(--papel); background: transparent; border-bottom-color: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .cuenta .barra .boton--fantasma { color: var(--papel); }
@@ -439,7 +442,7 @@ dialog.hoja::backdrop { background: rgba(10, 10, 10, .5); backdrop-filter: blur(
 
 /* ---------- Notificación ---------- */
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; max-width: calc(100% - 32px); text-align: center; padding: 12px 18px; border-radius: 999px; background: var(--tinta); color: var(--papel); font-size: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .3); transition: opacity .2s, transform .2s; pointer-events: none; z-index: 60; }
-.toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+.toast.is-on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; cursor: pointer; }
 
 /* ---------- Peticiones de los jugadores (lado del DM) y «Mi personaje» ---------- */
 .pets { display: grid; gap: 12px; margin-bottom: 22px; padding: 16px; border-radius: 8px; background: var(--amarillo); color: var(--tinta); border: 2px solid var(--tinta); box-shadow: 7px 7px 0 var(--dura); }

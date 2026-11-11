@@ -152,7 +152,8 @@
   let tt;
   F.toast = texto => {
     let t = document.querySelector('.toast');
-    if (!t) { t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); document.body.append(t); }
+    // Se va sola; tocarla la cierra antes.
+    if (!t) { t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.title = 'Toca para cerrar'; t.addEventListener('click', () => { clearTimeout(tt); t.classList.remove('is-on'); }); document.body.append(t); }
     t.textContent = texto; t.classList.add('is-on');
     clearTimeout(tt); tt = setTimeout(() => t.classList.remove('is-on'), Math.max(2600, texto.length * 55));
   };
