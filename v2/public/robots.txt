@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /$
+Disallow: /api/
+Disallow: /campana.html
+Disallow: /campanas.html
+Disallow: /mesa.html
+Disallow: /jugador.html
+Disallow: /escena.html
+Disallow: /proyector.html
+Disallow: /personajes.html

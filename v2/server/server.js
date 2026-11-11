@@ -905,7 +905,7 @@ async function api(req, res, ruta, consulta) {
 const TIPOS = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2', '.json': 'application/json'
+  '.woff2': 'font/woff2', '.json': 'application/json', '.txt': 'text/plain; charset=utf-8'
 };
 function estatico(req, res, ruta, versionado) {
   let rel = decodeURIComponent(ruta);
